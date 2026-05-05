@@ -1,0 +1,9 @@
+{
+  "v": 1,
+  "id": "22222222-2222-2222-2222-222222222222",
+  "type": "key_tap",
+  "token": "sample-issued-token",
+  "payload": {
+    "key": "ENTER"
+  }
+}

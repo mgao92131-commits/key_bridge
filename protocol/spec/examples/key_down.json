@@ -1,0 +1,9 @@
+{
+  "v": 1,
+  "id": "kkkkkkkk-0000-0000-0000-000000000002",
+  "type": "key_down",
+  "token": "sample-issued-token",
+  "payload": {
+    "key": "CTRL"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "v": 1,
+  "id": "eeeeeeee-0000-0000-0000-000000000001",
+  "type": "error",
+  "payload": {
+    "code": "NOT_AUTHORIZED",
+    "message": "Send HELLO and complete authorization first."
+  }
+}

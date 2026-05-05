@@ -1,0 +1,10 @@
+{
+  "v": 1,
+  "id": "11111111-1111-1111-1111-111111111111",
+  "type": "hello",
+  "payload": {
+    "deviceId": "android-001",
+    "deviceName": "Pixel 9",
+    "appVersion": "1.0.0"
+  }
+}

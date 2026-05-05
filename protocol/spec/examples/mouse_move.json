@@ -1,0 +1,10 @@
+{
+  "v": 1,
+  "id": "mmmmmmmm-0000-0000-0000-000000000001",
+  "type": "mouse_move",
+  "token": "sample-issued-token",
+  "payload": {
+    "dx": 40,
+    "dy": 15
+  }
+}

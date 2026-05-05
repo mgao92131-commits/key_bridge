@@ -1,0 +1,10 @@
+{
+  "v": 1,
+  "id": "mmmmmmmm-0000-0000-0000-000000000003",
+  "type": "mouse_click",
+  "token": "sample-issued-token",
+  "payload": {
+    "button": "LEFT",
+    "repeat": 2
+  }
+}

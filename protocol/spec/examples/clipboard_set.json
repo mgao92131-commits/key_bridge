@@ -1,0 +1,9 @@
+{
+  "v": 1,
+  "id": "cccccccc-0000-0000-0000-000000000001",
+  "type": "clipboard_set",
+  "token": "sample-issued-token",
+  "payload": {
+    "text": "Copied text"
+  }
+}

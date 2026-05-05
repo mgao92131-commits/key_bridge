@@ -1,0 +1,37 @@
+# .NET
+bin/
+obj/
+.build-check/
+*.user
+*.suo
+*.userosscache
+*.sln.doccache
+
+# Android
+.gradle/
+build/
+app/build/
+*.apk
+local.properties
+.cxx/
+*.keystore
+!debug.keystore
+
+# macOS
+.DS_Store
+.build/
+DerivedData/
+*.app/
+*.swp
+*.lock
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Project Specific
+*.log
+probe_text.txt
+base_live.apk

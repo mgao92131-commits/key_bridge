@@ -1,0 +1,10 @@
+{
+  "v": 1,
+  "id": "mmmmmmmm-0000-0000-0000-000000000004",
+  "type": "mouse_scroll",
+  "token": "sample-issued-token",
+  "payload": {
+    "deltaX": 0,
+    "deltaY": -1
+  }
+}

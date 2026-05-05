@@ -1,0 +1,9 @@
+{
+  "v": 1,
+  "id": "33333333-3333-3333-3333-333333333333",
+  "type": "error",
+  "payload": {
+    "code": "BUSY",
+    "message": "Another client is already connected."
+  }
+}

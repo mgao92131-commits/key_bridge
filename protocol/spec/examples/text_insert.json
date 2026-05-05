@@ -1,0 +1,9 @@
+{
+  "v": 1,
+  "id": "44444444-4444-4444-4444-444444444444",
+  "type": "text_insert",
+  "token": "sample-issued-token",
+  "payload": {
+    "text": "Hello"
+  }
+}

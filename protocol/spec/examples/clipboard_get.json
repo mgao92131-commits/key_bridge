@@ -1,0 +1,7 @@
+{
+  "v": 1,
+  "id": "cccccccc-0000-0000-0000-000000000002",
+  "type": "clipboard_get",
+  "token": "sample-issued-token",
+  "payload": {}
+}

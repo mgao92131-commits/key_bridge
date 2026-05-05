@@ -1,0 +1,11 @@
+{
+  "v": 1,
+  "id": "11111111-1111-1111-1111-111111111111",
+  "type": "auth_result",
+  "payload": {
+    "ok": true,
+    "token": "sample-issued-token",
+    "persistToken": true,
+    "trusted": true
+  }
+}

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleExecutable</key>
+    <string>BlueTypeMac</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.bluetype.macagent</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>CFBundleName</key>
+    <string>BlueType Mac Agent</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.1.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>14.0</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSBluetoothAlwaysUsageDescription</key>
+    <string>BlueType publishes a classic Bluetooth input bridge service so your paired Android device can connect to this Mac.</string>
+    <key>NSBluetoothPeripheralUsageDescription</key>
+    <string>BlueType uses Bluetooth to accept input bridge connections from your paired Android device.</string>
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>BlueType needs local network access to receive keyboard, mouse, and clipboard commands from your Android device over Wi-Fi.</string>
+</dict>
+</plist>

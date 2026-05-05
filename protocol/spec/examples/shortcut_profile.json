@@ -1,0 +1,35 @@
+{
+  "v": 1,
+  "id": "55555555-5555-5555-5555-555555555555",
+  "type": "shortcut_profile",
+  "payload": {
+    "name": "Terminal",
+    "profile": {
+      "leftRail": {
+        "primaryAction": { "kind": "combo", "keys": ["SHIFT", "TAB"] },
+        "secondaryAction": { "kind": "key_tap", "key": "TAB" },
+        "stickyModifiers": ["ALT"],
+        "stickyDurationMs": 600
+      },
+      "rightRail": {
+        "primaryAction": { "kind": "combo", "keys": ["SHIFT", "TAB"] },
+        "secondaryAction": { "kind": "key_tap", "key": "TAB" },
+        "stickyModifiers": ["CTRL"],
+        "stickyDurationMs": 600
+      },
+      "bottomRail": {
+        "primaryAction": { "kind": "key_tap", "key": "LEFT" },
+        "secondaryAction": { "kind": "key_tap", "key": "RIGHT" },
+        "stickyModifiers": ["WIN", "CTRL"],
+        "stickyDurationMs": 600
+      },
+      "customButtons": [
+        {
+          "id": "copy",
+          "label": "COPY",
+          "action": { "kind": "combo", "keys": ["CTRL", "C"] }
+        }
+      ]
+    }
+  }
+}

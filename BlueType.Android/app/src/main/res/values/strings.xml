@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">BlueType</string>
+    <string name="status_idle">Idle</string>
+    <string name="status_connecting">Connecting</string>
+    <string name="status_connected">Connected</string>
+    <string name="status_error">Error</string>
+    <string name="service_channel_name">Connection</string>
+    <string name="service_notification_title">BlueType connection</string>
+    <string name="service_notification_body">Connection is active in the background.</string>
+</resources>

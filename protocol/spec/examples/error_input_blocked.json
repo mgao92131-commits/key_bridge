@@ -1,0 +1,9 @@
+{
+  "v": 1,
+  "id": "eeeeeeee-0000-0000-0000-000000000003",
+  "type": "error",
+  "payload": {
+    "code": "INPUT_BLOCKED",
+    "message": "Accessibility/Input Monitoring permission is required on macOS."
+  }
+}

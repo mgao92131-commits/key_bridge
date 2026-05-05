@@ -1,0 +1,9 @@
+{
+  "v": 1,
+  "id": "kkkkkkkk-0000-0000-0000-000000000004",
+  "type": "combo",
+  "token": "sample-issued-token",
+  "payload": {
+    "keys": ["CTRL", "C"]
+  }
+}

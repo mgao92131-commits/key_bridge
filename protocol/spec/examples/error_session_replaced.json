@@ -1,0 +1,9 @@
+{
+  "v": 1,
+  "id": "eeeeeeee-0000-0000-0000-000000000002",
+  "type": "error",
+  "payload": {
+    "code": "SESSION_REPLACED",
+    "message": "This connection is no longer the active control session."
+  }
+}
