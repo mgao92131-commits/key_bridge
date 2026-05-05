@@ -29,6 +29,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -44,8 +45,9 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TriRailCommandCenter(
-    value: String,
-    onValueChange: (String) -> Unit,
+    value: TextFieldValue,
+    onValueChange: (TextFieldValue) -> Unit,
+    onInsertText: (String) -> Unit,
     onSendText: () -> Unit,
     onSendKey: (String) -> Unit,
     onSendKeyDown: (String) -> Unit,
@@ -116,9 +118,7 @@ fun TriRailCommandCenter(
         when (action) {
             is ShortcutAction.KeyTap -> onSendKey(action.key)
             is ShortcutAction.Combo -> onSendCombo(action.keys)
-            is ShortcutAction.TextInsert -> {
-                onValueChange(value + action.text)
-            }
+            is ShortcutAction.TextInsert -> onInsertText(action.text)
             is ShortcutAction.Macro -> {
                 action.sequence.forEach { step ->
                     executeAction(step)

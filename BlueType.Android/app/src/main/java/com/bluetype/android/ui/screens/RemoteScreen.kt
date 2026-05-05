@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerId
@@ -44,6 +45,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.IntOffset
@@ -176,6 +178,15 @@ private fun MainWorkspace(
     var isWinActive by remember { mutableStateOf(false) }
     var isShiftActive by remember { mutableStateOf(false) }
     var isFnActive by remember { mutableStateOf(false) }
+    var editorValue by remember {
+        mutableStateOf(TextFieldValue(draftText, selection = TextRange(draftText.length)))
+    }
+
+    LaunchedEffect(draftText) {
+        if (draftText != editorValue.text) {
+            editorValue = TextFieldValue(draftText, selection = TextRange(draftText.length))
+        }
+    }
 
     val autoClearModifiers = {
         if (isCtrlActive || isAltActive || isWinActive || isShiftActive || isFnActive) {
@@ -189,6 +200,28 @@ private fun MainWorkspace(
     }
 
     val anyModifierActive = isCtrlActive || isAltActive || isWinActive || isShiftActive || isFnActive
+
+    fun updateEditor(value: TextFieldValue) {
+        editorValue = value
+        onDraftChange(value.text)
+    }
+
+    fun insertTextAtCursor(text: String) {
+        if (text.isEmpty()) {
+            return
+        }
+
+        val selection = editorValue.selection
+        val start = minOf(selection.start, selection.end).coerceIn(0, editorValue.text.length)
+        val end = maxOf(selection.start, selection.end).coerceIn(0, editorValue.text.length)
+        val nextText = buildString {
+            append(editorValue.text.substring(0, start))
+            append(text)
+            append(editorValue.text.substring(end))
+        }
+        val nextCursor = start + text.length
+        updateEditor(TextFieldValue(nextText, selection = TextRange(nextCursor)))
+    }
 
     val sendSmartKey = { key: String, shouldClear: Boolean ->
         val activeModifiers = mutableListOf<String>()
@@ -220,7 +253,7 @@ private fun MainWorkspace(
         when (action) {
             is ShortcutAction.KeyTap -> onSendKey(action.key)
             is ShortcutAction.Combo -> onSendCombo(action.keys)
-            is ShortcutAction.TextInsert -> onDraftChange(draftText + action.text)
+            is ShortcutAction.TextInsert -> insertTextAtCursor(action.text)
             is ShortcutAction.Macro -> {
                 action.sequence.forEach { step ->
                     executeAction(step)
@@ -292,22 +325,28 @@ private fun MainWorkspace(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 TriRailCommandCenter(
-                    value = draftText,
+                    value = editorValue,
                     onValueChange = { newValue ->
-                        if (newValue.length > draftText.length && (isCtrlActive || isAltActive || isWinActive)) {
-                            val char = newValue.last().toString().uppercase()
-                            val combo = mutableListOf<String>()
-                            if (isCtrlActive) combo.add("CTRL")
-                            if (isAltActive) combo.add("ALT")
-                            if (isWinActive) combo.add("WIN")
-                            if (isShiftActive) combo.add("SHIFT")
-                            combo.add(char)
-                            onSendCombo(combo)
-                            autoClearModifiers()
+                        if (newValue.text.length > editorValue.text.length && (isCtrlActive || isAltActive || isWinActive)) {
+                            val inserted = newValue.text.removePrefix(editorValue.text)
+                            val char = inserted.lastOrNull()?.toString()?.uppercase().orEmpty()
+                            if (char.isNotEmpty()) {
+                                val combo = mutableListOf<String>()
+                                if (isCtrlActive) combo.add("CTRL")
+                                if (isAltActive) combo.add("ALT")
+                                if (isWinActive) combo.add("WIN")
+                                if (isShiftActive) combo.add("SHIFT")
+                                combo.add(char)
+                                onSendCombo(combo)
+                                autoClearModifiers()
+                            } else {
+                                updateEditor(newValue)
+                            }
                         } else {
-                            onDraftChange(newValue)
+                            updateEditor(newValue)
                         }
                     },
+                    onInsertText = { text -> insertTextAtCursor(text) },
                     onSendText = onSendText,
                     onSendKey = onSendKey,
                     onSendKeyDown = onSendKeyDown,
