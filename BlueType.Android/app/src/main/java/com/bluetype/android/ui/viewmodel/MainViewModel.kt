@@ -164,7 +164,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun sendTextAndEnter() {
         viewModelScope.launch {
-            if (sendCurrentTextAwaitAck()) {
+            if (_draftText.value.isBlank()) {
+                connectionController.send(RemoteAction.KeyTap("ENTER"))
+            } else if (sendCurrentTextAwaitAck()) {
                 connectionController.send(RemoteAction.KeyTap("ENTER"))
             }
         }
