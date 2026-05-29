@@ -1,16 +1,17 @@
 package com.bluetype.android.bluetooth
 
 import android.bluetooth.BluetoothManager
+import android.net.ConnectivityManager
 import android.content.Context
 import android.net.Network
 import android.util.Log
-import com.bluetype.android.data.PreferencesRepository
 import com.bluetype.android.domain.ConnectionTarget
 import com.bluetype.android.network.TcpSocketSession
+import java.net.Inet4Address
+import java.net.InetAddress
 
 internal class ConnectionOrchestrator(
     private val appContext: Context,
-    private val preferencesRepository: PreferencesRepository,
 ) {
     suspend fun openTransport(
         target: ConnectionTarget,
@@ -31,15 +32,30 @@ internal class ConnectionOrchestrator(
         val preferredNetwork = preferredLanNetworkProvider()
         Log.d(
             LOG_TAG,
-            "openWifiTransport host=${target.host} port=${target.port} preferredNetwork=${preferredNetwork != null}; using default socket",
+            "openWifiTransport host=${target.host} port=${target.port} preferredNetwork=${preferredNetwork != null}",
         )
-        val tcpSession = TcpSocketSession(target.host, target.port, network = preferredNetwork)
+        val tcpSession = TcpSocketSession(
+            host = target.host,
+            port = target.port,
+            network = preferredNetwork,
+            localBindAddress = preferredNetwork?.let(::wifiIpv4Address),
+        )
         tcpSession.connect()
         return OpenedTransport(
             input = tcpSession.inputStream(),
             output = tcpSession.outputStream(),
             close = { tcpSession.close() },
         )
+    }
+
+    private fun wifiIpv4Address(network: Network): InetAddress? {
+        val connectivityManager = appContext.getSystemService(ConnectivityManager::class.java) ?: return null
+        return connectivityManager.getLinkProperties(network)
+            ?.linkAddresses
+            ?.asSequence()
+            ?.map { it.address }
+            ?.filterIsInstance<Inet4Address>()
+            ?.firstOrNull { !it.isLoopbackAddress }
     }
 
     private suspend fun openBluetoothTransport(
@@ -52,7 +68,7 @@ internal class ConnectionOrchestrator(
         val adapter = bluetoothManager.adapter
             ?: throw IllegalStateException("Bluetooth is not available on this device.")
         val device = adapter.bondedDevices.firstOrNull { it.address.equals(target.address, ignoreCase = true) }
-            ?: throw IllegalStateException("Paired device not found. Re-pair the Windows PC first.")
+            ?: throw IllegalStateException("Paired device not found. Re-pair the desktop first.")
 
         val reconnectCooldownMs = if (isReconnectAttempt) {
             (BLUETOOTH_RECONNECT_MIN_DELAY_MS - (System.currentTimeMillis() - lastBluetoothDisconnectAtMs))
@@ -64,15 +80,10 @@ internal class ConnectionOrchestrator(
         val socketSession = SocketSession(
             adapter = adapter,
             device = device,
-            preferredChannel = preferencesRepository.bluetoothRfcommChannel(target.address),
             preConnectDelayMs = reconnectCooldownMs,
             candidatePauseMs = BLUETOOTH_CANDIDATE_PAUSE_MS,
         )
         socketSession.connect()
-        socketSession.connectedChannel()?.let { channel ->
-            preferencesRepository.saveBluetoothRfcommChannel(target.address, channel)
-            Log.d(LOG_TAG, "Saved Bluetooth RFCOMM channel $channel for ${target.address}")
-        }
         return OpenedTransport(
             input = socketSession.inputStream(),
             output = socketSession.outputStream(),

@@ -10,9 +10,10 @@ the stable bundle identifier, restarts the app, and verifies TCP port 24862.
 
 Options:
   --release               Build the release product instead of debug.
-  --reset-accessibility   Reset macOS Accessibility approval for
+  --reset-accessibility   Reset macOS Accessibility and Bluetooth approval for
                           com.bluetype.macagent. Use this when logs show
-                          INPUT_BLOCKED after changing/re-signing the app.
+                          INPUT_BLOCKED, Bluetooth permission drift, or stale
+                          TCC state after changing/re-signing the app.
   --sign-identity VALUE   Code-sign with the provided identity name or hash.
                           Defaults to the first available Apple Development
                           identity, falling back to ad-hoc when none exists.
@@ -65,12 +66,14 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 MAC_DIR="$REPO_ROOT/BlueType.Mac"
 APP_NAME="BlueTypeMac"
 APP_BUNDLE="$MAC_DIR/$APP_NAME.app"
+INSTALLED_APP_BUNDLE="/Applications/$APP_NAME.app"
 CONTENTS_DIR="$APP_BUNDLE/Contents"
 EXECUTABLE="$CONTENTS_DIR/MacOS/$APP_NAME"
 PLIST_SOURCE="$MAC_DIR/Resources/Info.plist"
 PLIST_TARGET="$CONTENTS_DIR/Info.plist"
 ICON_SOURCE="$MAC_DIR/Resources/AppIcon.icns"
 ICON_TARGET="$CONTENTS_DIR/Resources/AppIcon.icns"
+ENTITLEMENTS_SOURCE="$MAC_DIR/Resources/BlueTypeMac.entitlements"
 PORT="24862"
 BUNDLE_ID="com.bluetype.macagent"
 
@@ -135,7 +138,12 @@ else
     echo "Signing app bundle as $BUNDLE_ID with identity: $SIGN_CHOICE"
     TIMESTAMP_OPTION="--timestamp"
 fi
-codesign --force --deep --options runtime "$TIMESTAMP_OPTION" --sign "$SIGN_CHOICE" "$APP_BUNDLE"
+if [[ -f "$ENTITLEMENTS_SOURCE" ]]; then
+    codesign --force --deep --options runtime "$TIMESTAMP_OPTION" --entitlements "$ENTITLEMENTS_SOURCE" --sign "$SIGN_CHOICE" "$APP_BUNDLE"
+else
+    echo "Warning: entitlements file not found at $ENTITLEMENTS_SOURCE; signing without entitlements." >&2
+    codesign --force --deep --options runtime "$TIMESTAMP_OPTION" --sign "$SIGN_CHOICE" "$APP_BUNDLE"
+fi
 
 SIGNED_ID="$(codesign -dv --verbose=4 "$APP_BUNDLE" 2>&1 | awk -F= '/^Identifier=/{value=$2} END{print value}')"
 if [[ "$SIGNED_ID" != "$BUNDLE_ID" ]]; then
@@ -143,9 +151,20 @@ if [[ "$SIGNED_ID" != "$BUNDLE_ID" ]]; then
     exit 1
 fi
 
+echo "Installing signed app bundle to $INSTALLED_APP_BUNDLE..."
+rm -rf "$INSTALLED_APP_BUNDLE"
+ditto "$APP_BUNDLE" "$INSTALLED_APP_BUNDLE"
+
+INSTALLED_SIGNED_ID="$(codesign -dv --verbose=4 "$INSTALLED_APP_BUNDLE" 2>&1 | awk -F= '/^Identifier=/{value=$2} END{print value}')"
+if [[ "$INSTALLED_SIGNED_ID" != "$BUNDLE_ID" ]]; then
+    echo "Unexpected installed codesign identifier: ${INSTALLED_SIGNED_ID:-<missing>}" >&2
+    exit 1
+fi
+
 if [[ "$RESET_ACCESSIBILITY" -eq 1 ]]; then
     echo "Resetting permissions for $BUNDLE_ID..."
     tccutil reset Accessibility "$BUNDLE_ID" || true
+    tccutil reset Bluetooth "$BUNDLE_ID" || true
     tccutil reset BluetoothAlways "$BUNDLE_ID" || true
 fi
 
@@ -153,8 +172,8 @@ echo "Stopping existing $APP_NAME processes..."
 pkill -x "$APP_NAME" 2>/dev/null || true
 sleep 1
 
-echo "Starting $APP_BUNDLE..."
-open "$APP_BUNDLE"
+echo "Starting $INSTALLED_APP_BUNDLE..."
+open "$INSTALLED_APP_BUNDLE"
 sleep 2
 
 echo "Verifying process..."
@@ -179,10 +198,10 @@ if [[ "$RESET_ACCESSIBILITY" -eq 1 ]]; then
     echo
     echo "If an old Accessibility entry is still listed, remove it with the minus button,"
     echo "add this exact app bundle, then enable it:"
-    echo "  $APP_BUNDLE"
+    echo "  $INSTALLED_APP_BUNDLE"
     open 'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility'
 else
-    echo "If Android connects but input is blocked, run:"
+    echo "If Android connects but input is blocked or Bluetooth permission looks stale, run:"
     echo "  tools/restart-mac-agent.sh --reset-accessibility"
 fi
 

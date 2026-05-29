@@ -51,7 +51,9 @@ public final class MacAgent {
         }
 
         do {
-            let bluetooth = BluetoothServer()
+            let bluetooth = BluetoothServer { [weak stateSink] message in
+                stateSink?.postMessage(message)
+            }
             try bluetooth.start { [weak self] connection, transport in
                 self?.processor.run(connection: connection, transport: transport)
             }

@@ -22,13 +22,11 @@ import kotlinx.coroutines.withContext
 class SocketSession(
     private val adapter: BluetoothAdapter,
     private val device: BluetoothDevice,
-    private val preferredChannel: Int? = null,
     private val preConnectDelayMs: Long = 0L,
     private val candidatePauseMs: Long = 250L,
     private val candidateConnectTimeoutMs: Long = CANDIDATE_CONNECT_TIMEOUT_MS,
 ) {
     private var socket: BluetoothSocket? = null
-    private var connectedChannel: Int? = null
 
     @SuppressLint("MissingPermission")
     suspend fun connect() = withContext(Dispatchers.IO) {
@@ -44,7 +42,6 @@ class SocketSession(
                 Log.d(LOG_TAG, "Trying Bluetooth socket candidate ${candidate.label}")
                 val candidateSocket = connectCandidateWithTimeout(candidate)
                 socket = candidateSocket
-                connectedChannel = candidate.channel
                 Log.d(LOG_TAG, "Connected using Bluetooth socket candidate ${candidate.label}")
                 return@withContext
             } catch (error: Throwable) {
@@ -98,86 +95,27 @@ class SocketSession(
 
     fun outputStream(): OutputStream = requireNotNull(socket).outputStream
 
-    fun connectedChannel(): Int? = connectedChannel
-
     fun close() {
         runCatching { socket?.close() }
         socket = null
-        connectedChannel = null
     }
 
     @SuppressLint("MissingPermission")
     private fun socketCandidates(): Sequence<SocketCandidate> = sequence {
-        val directChannels = preferredDirectChannels()
-
         yield(
-            SocketCandidate(label = "secure SDP ${UuidConst.SERVICE_UUID}") {
+            SocketCandidate(label = "secure SDP BlueType ${UuidConst.SERVICE_UUID}") {
                 device.createRfcommSocketToServiceRecord(UuidConst.SERVICE_UUID)
             },
         )
         yield(
-            SocketCandidate(label = "insecure SDP ${UuidConst.SERVICE_UUID}") {
+            SocketCandidate(label = "insecure SDP BlueType ${UuidConst.SERVICE_UUID}") {
                 device.createInsecureRfcommSocketToServiceRecord(UuidConst.SERVICE_UUID)
             },
         )
-
-        if (preferredChannel != null) {
-            yieldDirectRfcommSockets(
-                methodName = "createRfcommSocket",
-                label = "cached secure direct",
-                channels = listOf(preferredChannel),
-            )
-            yieldDirectRfcommSockets(
-                methodName = "createInsecureRfcommSocket",
-                label = "cached insecure direct",
-                channels = listOf(preferredChannel),
-            )
-        }
-
-        yieldDirectRfcommSockets(methodName = "createRfcommSocket", label = "secure direct", channels = directChannels)
-        yieldDirectRfcommSockets(methodName = "createInsecureRfcommSocket", label = "insecure direct", channels = directChannels)
-    }
-
-    private suspend fun SequenceScope<SocketCandidate>.yieldDirectRfcommSockets(
-        methodName: String,
-        label: String,
-        channels: List<Int>,
-    ) {
-        val method = try {
-            device.javaClass.getMethod(methodName, Int::class.javaPrimitiveType)
-        } catch (error: Exception) {
-            Log.w(LOG_TAG, "Reflection fallback $methodName failed to create: ${error.message}")
-            return
-        }
-
-        for (channel in channels) {
-            yield(
-                SocketCandidate(
-                    label = "$label channel $channel",
-                    create = {
-                        try {
-                            method.invoke(device, channel) as BluetoothSocket
-                        } catch (error: Exception) {
-                            throw IOException("Reflection fallback $methodName channel $channel failed to create: ${error.message}", error)
-                        }
-                    },
-                    channel = channel,
-                ),
-            )
-        }
-    }
-
-    private fun preferredDirectChannels(): List<Int> {
-        return if (preferredChannel == null) {
-            DIRECT_RFCOMM_CHANNELS
-        } else {
-            listOf(preferredChannel) + DIRECT_RFCOMM_CHANNELS.filter { it != preferredChannel }
-        }
     }
 
     private data class SocketCandidate(
         val label: String,
-        val channel: Int? = null,
         val create: () -> BluetoothSocket,
     )
 
@@ -193,7 +131,6 @@ class SocketSession(
 
     private companion object {
         private const val LOG_TAG = "BlueTypeSocket"
-        private const val CANDIDATE_CONNECT_TIMEOUT_MS = 4_000L
-        private val DIRECT_RFCOMM_CHANNELS = (23..30).toList() + (4..22).toList() + listOf(1, 2, 3)
+        private const val CANDIDATE_CONNECT_TIMEOUT_MS = 20_000L
     }
 }

@@ -26,7 +26,6 @@ class PreferencesRepository(
     private val legacyTokenKey = stringPreferencesKey("saved_token")
     private val recentDevicesKey = stringPreferencesKey("recent_devices")
     private val persistedSessionKey = stringPreferencesKey("persisted_session")
-    private val bluetoothRfcommChannelsKey = stringPreferencesKey("bluetooth_rfcomm_channels")
     private val draftTextKey = stringPreferencesKey("draft_text")
     private val secureTokenStore = SecureTokenStore(context)
 
@@ -115,27 +114,6 @@ class PreferencesRepository(
         }
     }
 
-    suspend fun bluetoothRfcommChannel(address: String): Int? {
-        val normalizedAddress = normalizeBluetoothAddress(address)
-        if (normalizedAddress.isBlank()) {
-            return null
-        }
-
-        return decodeBluetoothChannels(context.dataStore.data.first()[bluetoothRfcommChannelsKey].orEmpty())[normalizedAddress]
-    }
-
-    suspend fun saveBluetoothRfcommChannel(address: String, channel: Int) {
-        val normalizedAddress = normalizeBluetoothAddress(address)
-        if (normalizedAddress.isBlank() || channel !in 1..30) {
-            return
-        }
-
-        val existing = decodeBluetoothChannels(context.dataStore.data.first()[bluetoothRfcommChannelsKey].orEmpty())
-        context.dataStore.edit { prefs ->
-            prefs[bluetoothRfcommChannelsKey] = json.encodeToString(existing + (normalizedAddress to channel))
-        }
-    }
-
     override suspend fun getOrCreateDeviceId(): String {
         val current = context.dataStore.data.first()[deviceIdKey]
         if (!current.isNullOrBlank()) {
@@ -159,17 +137,4 @@ class PreferencesRepository(
         }.getOrNull()
     }
 
-    private fun decodeBluetoothChannels(raw: String): Map<String, Int> {
-        if (raw.isBlank()) {
-            return emptyMap()
-        }
-
-        return runCatching {
-            json.decodeFromString<Map<String, Int>>(raw)
-        }.getOrDefault(emptyMap())
-    }
-
-    private fun normalizeBluetoothAddress(address: String): String {
-        return address.trim().uppercase()
-    }
 }

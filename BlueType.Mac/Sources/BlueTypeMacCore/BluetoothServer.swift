@@ -9,42 +9,63 @@ public final class BluetoothServer: NSObject, TransportServer {
     private var notification: IOBluetoothUserNotification?
     private var onClient: ((ClientConnection, String) -> Void)?
     private var openChannels: [BluetoothChannelConnection] = []
+    private let log: (String) -> Void
     public var publishedChannelID: BluetoothRFCOMMChannelID {
         channelID
     }
 
+    public init(log: @escaping (String) -> Void = { _ in }) {
+        self.log = log
+        super.init()
+    }
+
     public func start(onClient: @escaping (ClientConnection, String) -> Void) throws {
+        log("Bluetooth RFCOMM server starting...")
         self.onClient = onClient
-        
-        var registered = false
-        for id in Self.preferredRFCOMMChannels {
-            let candidateChannel = BluetoothRFCOMMChannelID(id)
-            notification = IOBluetoothRFCOMMChannel.register(
-                forChannelOpenNotifications: self,
-                selector: #selector(channelOpened(_:channel:)),
-                withChannelID: candidateChannel,
-                direction: kIOBluetoothUserNotificationChannelDirectionIncoming
-            )
-            if notification != nil {
-                channelID = candidateChannel
-                registered = true
-                break
+
+        serviceRecord = nil
+        for requestedChannel in Self.preferredRFCOMMChannels {
+            log("Bluetooth RFCOMM publishing SDP service with requested channel \(requestedChannel)...")
+            guard let record = IOBluetoothSDPServiceRecord.publishedServiceRecord(
+                with: serviceDictionary(requestedChannel: BluetoothRFCOMMChannelID(requestedChannel))
+            ) else {
+                continue
             }
+
+            var assignedChannel = BluetoothRFCOMMChannelID(0)
+            let result = record.getRFCOMMChannelID(&assignedChannel)
+            guard result == kIOReturnSuccess, assignedChannel > 0 else {
+                log("Bluetooth RFCOMM published SDP record but could not read assigned channel; result=\(result), channel=\(assignedChannel).")
+                record.remove()
+                continue
+            }
+
+            serviceRecord = record
+            channelID = assignedChannel
+            break
         }
-        
-        guard registered else {
-            throw BluetoothServerError.unavailable
-        }
-        
-        serviceRecord = IOBluetoothSDPServiceRecord.publishedServiceRecord(with: serviceDictionary())
-        
+
         if serviceRecord == nil {
-            notification?.unregister()
-            notification = nil
+            log("Bluetooth SDP service record publication failed.")
             throw BluetoothServerError.unavailable
         }
 
-        NSLog("Bluetooth RFCOMM service published on channel \(channelID).")
+        log("Bluetooth RFCOMM service published on channel \(channelID).")
+        notification = IOBluetoothRFCOMMChannel.register(
+            forChannelOpenNotifications: self,
+            selector: #selector(channelOpened(_:channel:)),
+            withChannelID: channelID,
+            direction: kIOBluetoothUserNotificationChannelDirectionIncoming
+        )
+
+        guard notification != nil else {
+            serviceRecord?.remove()
+            serviceRecord = nil
+            log("Bluetooth RFCOMM open notification registration failed for channel \(channelID).")
+            throw BluetoothServerError.unavailable
+        }
+
+        log("Bluetooth RFCOMM open notification registered on channel \(channelID).")
     }
 
     public func stop() {
@@ -54,39 +75,53 @@ public final class BluetoothServer: NSObject, TransportServer {
         serviceRecord = nil
         openChannels.forEach { $0.close() }
         openChannels.removeAll()
+        log("Bluetooth RFCOMM service stopped.")
     }
 
     @objc private func channelOpened(_ notification: IOBluetoothUserNotification, channel: IOBluetoothRFCOMMChannel) {
-        NSLog("Bluetooth RFCOMM channel opened from \(channel.getDevice()?.addressString ?? "unknown device") on channel \(channelID).")
-        let connection = BluetoothChannelConnection(channel: channel) { [weak self] closed in
+        log("Bluetooth RFCOMM channel opened from \(channel.getDevice()?.addressString ?? "unknown device") on channel \(channelID).")
+        let connection = BluetoothChannelConnection(channel: channel, log: log) { [weak self] closed in
             self?.openChannels.removeAll { $0 === closed }
         }
         openChannels.append(connection)
         onClient?(connection, name)
     }
 
-    private func serviceDictionary() -> [String: Any] {
+    private func serviceDictionary(requestedChannel: BluetoothRFCOMMChannelID) -> [String: Any] {
         let serviceUUID = Self.uuid128(BlueTypeConstants.serviceUUID)
         let serialPort = IOBluetoothSDPUUID.uuid16(0x1101)!
         let l2cap = IOBluetoothSDPUUID.uuid16(0x0100)!
         let rfcomm = IOBluetoothSDPUUID.uuid16(0x0003)!
 
+        // IOBluetooth on current macOS expects the legacy string-key SDP dictionary here.
+        // Numeric attribute keys can publish inconsistently and prevent incoming RFCOMM opens.
+        // 0x0001: kBluetoothSDPAttributeIdentifierServiceClassIDList
+        // 0x0004: kBluetoothSDPAttributeIdentifierProtocolDescriptorList
+        // 0x0005: kBluetoothSDPAttributeIdentifierBrowseGroupList
+        // 0x0006: kBluetoothSDPAttributeIdentifierLanguageBaseAttributeIDList
+        // 0x0009: kBluetoothSDPAttributeIdentifierBluetoothProfileDescriptorList
+        // 0x0100: kBluetoothSDPAttributeIdentifierServiceName
         return [
             "0001 - ServiceClassIDList": [serviceUUID, serialPort],
             "0004 - ProtocolDescriptorList": [
                 [l2cap],
-                [rfcomm, NSNumber(value: channelID)],
+                [
+                    rfcomm,
+                    [
+                        "DataElementType": NSNumber(value: 1),
+                        "DataElementSize": NSNumber(value: 1),
+                        "DataElementValue": NSNumber(value: requestedChannel),
+                    ],
+                ],
             ],
             "0005 - BrowseGroupList": [IOBluetoothSDPUUID.uuid16(0x1002)!],
             "0006 - LanguageBaseAttributeIDList": [
                 NSNumber(value: 0x656E),
                 NSNumber(value: 0x006A),
-                NSNumber(value: 0x0100),
+                NSNumber(value: 0x0100)
             ],
-            "0100 - ServiceName": "BlueType",
-            "LocalAttributes": [
-                "Persistent": false,
-            ],
+            "0009 - BluetoothProfileDescriptorList": [[serialPort, NSNumber(value: 0x0100)]],
+            "0100 - ServiceName": "BlueType Remote"
         ]
     }
 
@@ -98,7 +133,7 @@ public final class BluetoothServer: NSObject, TransportServer {
         }
     }
 
-    private static let preferredRFCOMMChannels: [Int] = Array(23...30) + Array(4...22)
+    private static let preferredRFCOMMChannels: [Int] = Array(23...30) + Array(4...22) + Array(1...3)
 }
 
 public enum BluetoothServerError: Error, LocalizedError {
@@ -112,6 +147,7 @@ public enum BluetoothServerError: Error, LocalizedError {
 public final class BluetoothChannelConnection: NSObject, ClientConnection, IOBluetoothRFCOMMChannelDelegate {
     private let channel: IOBluetoothRFCOMMChannel
     private let onClose: (BluetoothChannelConnection) -> Void
+    private let log: (String) -> Void
     private let lock = NSLock()
     private var buffer = Data()
     private var waiters: [PendingRead] = []
@@ -121,8 +157,9 @@ public final class BluetoothChannelConnection: NSObject, ClientConnection, IOBlu
         channel.getDevice()?.addressString ?? "bluetooth"
     }
 
-    init(channel: IOBluetoothRFCOMMChannel, onClose: @escaping (BluetoothChannelConnection) -> Void) {
+    init(channel: IOBluetoothRFCOMMChannel, log: @escaping (String) -> Void, onClose: @escaping (BluetoothChannelConnection) -> Void) {
         self.channel = channel
+        self.log = log
         self.onClose = onClose
         super.init()
         channel.setDelegate(self)
@@ -160,6 +197,7 @@ public final class BluetoothChannelConnection: NSObject, ClientConnection, IOBlu
                 channel.writeSync(UnsafeMutableRawPointer(mutating: pointer.baseAddress!), length: UInt16(size))
             }
             guard result == kIOReturnSuccess else {
+                log("Bluetooth RFCOMM write failed for \(remoteAddress) with error \(result)")
                 throw BluetoothChannelError.writeFailed(result)
             }
             offset += size

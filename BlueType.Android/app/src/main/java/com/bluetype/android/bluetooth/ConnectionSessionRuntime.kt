@@ -56,7 +56,7 @@ internal class ConnectionSessionRuntime(
     private val tokenRepository: TokenRepository = preferencesRepository
     private val deviceIdentityRepository: DeviceIdentityRepository = preferencesRepository
     private val persistedSessionCoordinator = PersistedSessionCoordinator(preferencesRepository)
-    private val connectionOrchestrator = ConnectionOrchestrator(appContext, preferencesRepository)
+    private val connectionOrchestrator = ConnectionOrchestrator(appContext)
     private val commandDispatcher = ConnectionCommandDispatcher(
         stateProvider = { ConnectionUiStateStore.state.value },
         connectionProvider = { activeConnection },
@@ -199,7 +199,7 @@ internal class ConnectionSessionRuntime(
         )
 
         try {
-            val transport = kotlinx.coroutines.withTimeout(15_000L) {
+            val transport = kotlinx.coroutines.withTimeout(connectTimeoutMs(target)) {
                 connectionOrchestrator.openTransport(
                     target = target,
                     isReconnectAttempt = reason.isRestoreAttempt,
@@ -229,6 +229,13 @@ internal class ConnectionSessionRuntime(
             Log.e(logTag, "connect failed", error)
             disconnectInternal(updateState = false, clearSession = false)
             return "Failed to connect to ${target.label}: ${error.message ?: "unknown error"}"
+        }
+    }
+
+    private fun connectTimeoutMs(target: ConnectionTarget): Long {
+        return when (target) {
+            is ConnectionTarget.Bluetooth -> BLUETOOTH_CONNECT_TIMEOUT_MS
+            is ConnectionTarget.Wifi -> WIFI_CONNECT_TIMEOUT_MS
         }
     }
 
@@ -682,6 +689,8 @@ internal class ConnectionSessionRuntime(
     private companion object {
         private const val COMMAND_BUFFER_CAPACITY = 256
         private const val STICKY_COMBO_DURATION_MS = 300L
+        private const val WIFI_CONNECT_TIMEOUT_MS = 15_000L
+        private const val BLUETOOTH_CONNECT_TIMEOUT_MS = 45_000L
     }
 
     private enum class ReconnectSource(val logName: String) {
