@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.bluetype.android.domain.ConnectionTarget
 import java.util.UUID
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -48,18 +49,26 @@ class PreferencesRepository(
         prefs[draftTextKey].orEmpty()
     }
 
-    override suspend fun currentToken(): String? = secureTokenStore.currentToken(legacyTokenKey)
+    override suspend fun currentToken(target: ConnectionTarget): String? {
+        return secureTokenStore.currentToken(
+            tokenKey = target.tokenStorageKey(),
+            legacyTokenKey = legacyTokenKey,
+        )
+    }
 
     override suspend fun currentPersistedSession(): PersistedSession? {
         return decodePersistedSession(context.dataStore.data.first()[persistedSessionKey].orEmpty())
     }
 
-    override suspend fun saveToken(token: String) {
-        secureTokenStore.saveToken(legacyTokenKey, token)
+    override suspend fun saveToken(target: ConnectionTarget, token: String) {
+        secureTokenStore.saveToken(
+            tokenKey = target.tokenStorageKey(),
+            token = token,
+        )
     }
 
-    override suspend fun clearToken() {
-        secureTokenStore.clearToken(legacyTokenKey)
+    override suspend fun clearToken(target: ConnectionTarget) {
+        secureTokenStore.clearToken(target.tokenStorageKey())
     }
 
     suspend fun saveRecentDevice(device: StoredDevice) {

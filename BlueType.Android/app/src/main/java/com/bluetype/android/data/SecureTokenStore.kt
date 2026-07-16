@@ -20,14 +20,25 @@ internal class SecureTokenStore(
 ) {
     private val encryptedTokenKey = stringPreferencesKey("saved_token_encrypted")
 
-    suspend fun currentToken(legacyTokenKey: Preferences.Key<String>): String? {
+    suspend fun currentToken(tokenKey: String, legacyTokenKey: Preferences.Key<String>): String? {
         val prefs = context.dataStore.data.first()
+        val targetTokenKey = encryptedTokenKey(tokenKey)
+        prefs[targetTokenKey]?.let { encrypted ->
+            return runCatching {
+                decrypt(encrypted)
+            }.getOrElse { error ->
+                Log.w(LOG_TAG, "Failed to decrypt stored token for $tokenKey. Clearing target token.", error)
+                clearToken(tokenKey)
+                null
+            }
+        }
+
         prefs[encryptedTokenKey]?.let { encrypted ->
             return runCatching {
                 decrypt(encrypted)
             }.getOrElse { error ->
-                Log.w(LOG_TAG, "Failed to decrypt stored token. Clearing secure token.", error)
-                clearStoredKeys(legacyTokenKey)
+                Log.w(LOG_TAG, "Failed to decrypt legacy stored token. Clearing legacy token.", error)
+                clearLegacyStoredKeys(legacyTokenKey)
                 null
             }
         }
@@ -37,31 +48,41 @@ internal class SecureTokenStore(
         return legacyToken
     }
 
-    suspend fun saveToken(legacyTokenKey: Preferences.Key<String>, token: String) {
+    suspend fun saveToken(tokenKey: String, token: String) {
         val encrypted = encrypt(token)
         context.dataStore.edit { prefs ->
-            prefs[encryptedTokenKey] = encrypted
-            prefs.remove(legacyTokenKey)
+            prefs[encryptedTokenKey(tokenKey)] = encrypted
         }
     }
 
-    suspend fun clearToken(legacyTokenKey: Preferences.Key<String>) {
-        clearStoredKeys(legacyTokenKey)
+    suspend fun clearToken(tokenKey: String) {
+        context.dataStore.edit { prefs ->
+            prefs.remove(encryptedTokenKey(tokenKey))
+        }
     }
 
     private suspend fun migrateLegacyToken(legacyTokenKey: Preferences.Key<String>, token: String) {
         runCatching {
-            saveToken(legacyTokenKey, token)
+            val encrypted = encrypt(token)
+            context.dataStore.edit { prefs ->
+                prefs[encryptedTokenKey] = encrypted
+                prefs.remove(legacyTokenKey)
+            }
         }.onFailure { error ->
             Log.w(LOG_TAG, "Failed to migrate legacy token into secure storage.", error)
         }
     }
 
-    private suspend fun clearStoredKeys(legacyTokenKey: Preferences.Key<String>) {
+    private suspend fun clearLegacyStoredKeys(legacyTokenKey: Preferences.Key<String>) {
         context.dataStore.edit { prefs ->
             prefs.remove(encryptedTokenKey)
             prefs.remove(legacyTokenKey)
         }
+    }
+
+    private fun encryptedTokenKey(tokenKey: String): Preferences.Key<String> {
+        val encoded = Base64.getUrlEncoder().withoutPadding().encodeToString(tokenKey.toByteArray(Charsets.UTF_8))
+        return stringPreferencesKey("saved_token_encrypted_$encoded")
     }
 
     private fun encrypt(token: String): String {

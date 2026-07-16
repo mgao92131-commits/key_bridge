@@ -21,7 +21,7 @@ internal object AuthResponseHandler {
 
     fun helloError(payload: ErrorPayload): AuthErrorAction {
         val clearAuthState = payload.code == ErrorCodes.NotAuthorized
-        val stopRestore = clearAuthState
+        val stopRestore = clearAuthState || payload.code == ErrorCodes.Busy
         return AuthErrorAction(
             message = payload.message.ifBlank { defaultErrorMessage(payload.code) },
             clearToken = clearAuthState,

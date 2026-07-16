@@ -214,7 +214,7 @@ internal class ConnectionSessionRuntime(
             }
             attachConnectedTransport(
                 target = target,
-                token = tokenRepository.currentToken(),
+                token = tokenRepository.currentToken(target),
                 input = transport.input,
                 output = transport.output,
                 close = transport.close,
@@ -323,7 +323,7 @@ internal class ConnectionSessionRuntime(
                 if (result.token != null) {
                     connection.token = result.token
                     if (result.persistToken) {
-                        tokenRepository.saveToken(result.token)
+                        tokenRepository.saveToken(connection.target, result.token)
                     }
                 }
                 markConnected(connection.target)
@@ -399,7 +399,7 @@ internal class ConnectionSessionRuntime(
         if (requestId == connection.helloId) {
             val action = AuthResponseHandler.helloError(payload)
             if (action.clearToken) {
-                tokenRepository.clearToken()
+                tokenRepository.clearToken(connection.target)
             }
             if (action.clearPersistedSession) {
                 preferencesRepository.clearPersistedSession()
@@ -414,7 +414,7 @@ internal class ConnectionSessionRuntime(
 
         val authAction = AuthResponseHandler.commandAuthorizationError(payload)
         if (authAction != null) {
-            tokenRepository.clearToken()
+            tokenRepository.clearToken(connection.target)
             preferencesRepository.clearPersistedSession()
             desiredTarget = null
             disconnectInternal(updateState = false, clearSession = false)

@@ -1,11 +1,13 @@
 package com.bluetype.android.data
 
+import com.bluetype.android.domain.ConnectionTarget
+
 internal interface TokenRepository {
-    suspend fun currentToken(): String?
+    suspend fun currentToken(target: ConnectionTarget): String?
 
-    suspend fun saveToken(token: String)
+    suspend fun saveToken(target: ConnectionTarget, token: String)
 
-    suspend fun clearToken()
+    suspend fun clearToken(target: ConnectionTarget)
 }
 
 internal interface DeviceIdentityRepository {
