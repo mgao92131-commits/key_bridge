@@ -101,6 +101,7 @@ class ConnectionCommandDispatcherTest {
                 target = target,
                 persistenceIntent = ProfilePersistenceIntent.EXISTING_SAVED_COMPUTER,
             ),
+            attemptId = 1L,
             helloId = "hello",
             session = client,
         )

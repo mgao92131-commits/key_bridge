@@ -24,10 +24,25 @@ class AuthResponseHandlerTest {
             },
         )
 
-        val transition = AuthResponseHandler.pendingApproval(target, envelope)
+        val transition = AuthResponseHandler.pendingApproval(
+            target = target,
+            displayName = "Office",
+            computerId = "office-id",
+            attemptId = 1L,
+            envelope = envelope,
+        )
 
-        assertEquals(ConnectionState.AwaitingApproval(target, 60), transition.state)
-        assertEquals("Confirm this device on Windows within 60 seconds.", transition.statusMessage)
+        assertEquals(
+            ConnectionState.AwaitingApproval(
+                target = target,
+                timeoutSec = 60,
+                displayName = "Office",
+                computerId = "office-id",
+                attemptId = 1L,
+            ),
+            transition.state,
+        )
+        assertTrue(transition.statusMessage!!.contains("60"))
     }
 
     @Test

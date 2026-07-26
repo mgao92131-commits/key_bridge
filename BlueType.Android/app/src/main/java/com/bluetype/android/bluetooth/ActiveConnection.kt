@@ -7,6 +7,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 internal data class ActiveConnection(
     val profile: ComputerConnectionProfile,
+    val attemptId: Long,
     val helloId: String,
     val session: SessionClient,
     val tokenCandidate: TokenCandidate? = null,

@@ -19,7 +19,7 @@ fun BlueTypeApp(viewModel: MainViewModel) {
     val uiRoute by viewModel.uiRoute.collectAsState()
     val sessionTarget by viewModel.sessionTarget.collectAsState()
     val statusMessage by viewModel.statusMessage.collectAsState()
-    val lastFeedback by viewModel.lastFeedback.collectAsState()
+    val connectingComputerId by viewModel.connectingComputerId.collectAsState()
     val draftText by viewModel.draftText.collectAsState()
     val pairedBluetoothDevices by viewModel.pairedBluetoothDevices.collectAsState()
     val recentDevices by viewModel.recentDevices.collectAsState()
@@ -34,6 +34,7 @@ fun BlueTypeApp(viewModel: MainViewModel) {
                 UiRoute.REMOTE_SESSION -> RemoteScreen(
                     state = state,
                     sessionTarget = sessionTarget,
+                    statusMessage = statusMessage,
                     isInputEnabled = state is ConnectionState.Connected,
                     draftText = draftText,
                     onDraftChange = viewModel::updateDraft,
@@ -48,6 +49,9 @@ fun BlueTypeApp(viewModel: MainViewModel) {
                     onMouseClick = viewModel::sendMouseClick,
                     onMouseScroll = viewModel::sendMouseScroll,
                     onDisconnect = viewModel::disconnect,
+                    onCancelConnection = viewModel::cancelConnection,
+                    onRetryConnection = viewModel::retryConnection,
+                    onBackToDeviceList = viewModel::backToDeviceList,
                     profile = shortcutProfile,
                     profileTitle = remoteShortcutProfileName,
                 )
@@ -55,6 +59,7 @@ fun BlueTypeApp(viewModel: MainViewModel) {
                 UiRoute.DEVICE_LIST -> DeviceListScreen(
                     state = state,
                     statusMessage = statusMessage,
+                    connectingComputerId = connectingComputerId,
                     pairedBluetoothDevices = pairedBluetoothDevices,
                     recentDevices = recentDevices,
                     wifiHost = wifiHost,
@@ -67,7 +72,6 @@ fun BlueTypeApp(viewModel: MainViewModel) {
                     onConnectBluetooth = viewModel::connectBluetooth,
                     onRefreshBluetooth = viewModel::refreshBluetoothDevices,
                 )
-
             }
         }
     }

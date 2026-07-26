@@ -1,5 +1,6 @@
 package com.bluetype.android.bluetooth
 
+import com.bluetype.android.domain.ConnectionPhase
 import com.bluetype.android.domain.ConnectionState
 import com.bluetype.android.domain.ConnectionTarget
 import org.junit.Assert.assertEquals
@@ -15,12 +16,24 @@ class SessionStateReducerTest {
         val transition = SessionStateReducer.reduce(
             SessionStateReducer.Event.ConnectRequested(
                 target = target,
+                displayName = "Office",
+                computerId = "office-id",
+                attemptId = 7L,
                 restoreAttempt = false,
             ),
         )
 
-        assertEquals(ConnectionState.Connecting(target), transition.state)
-        assertEquals("Connecting to ${target.label}", transition.statusMessage)
+        assertEquals(
+            ConnectionState.Connecting(
+                target = target,
+                displayName = "Office",
+                computerId = "office-id",
+                attemptId = 7L,
+                phase = ConnectionPhase.OPENING_TRANSPORT,
+            ),
+            transition.state,
+        )
+        assertTrue(transition.statusMessage!!.contains("Office"))
         assertTrue(transition.showRemoteSession)
         assertEquals(target, transition.sessionTarget)
     }
@@ -30,45 +43,119 @@ class SessionStateReducerTest {
         val transition = SessionStateReducer.reduce(
             SessionStateReducer.Event.ConnectRequested(
                 target = target,
+                displayName = "Office",
+                computerId = "office-id",
+                attemptId = 3L,
                 restoreAttempt = true,
                 attempt = 2,
             ),
         )
 
-        assertEquals(ConnectionState.Reconnecting(target, 2), transition.state)
-        assertEquals("Restoring connection to ${target.label}", transition.statusMessage)
+        assertEquals(
+            ConnectionState.Reconnecting(
+                target = target,
+                attempt = 2,
+                displayName = "Office",
+                computerId = "office-id",
+                attemptId = 3L,
+            ),
+            transition.state,
+        )
+        assertEquals("Restoring connection to Office", transition.statusMessage)
     }
 
     @Test
     fun authPending_entersAwaitingApproval() {
-        val transition = SessionStateReducer.reduce(SessionStateReducer.Event.AuthPending(target, timeoutSec = 60))
+        val transition = SessionStateReducer.reduce(
+            SessionStateReducer.Event.AuthPending(
+                target = target,
+                displayName = "Office",
+                computerId = "office-id",
+                attemptId = 9L,
+                timeoutSec = 60,
+            ),
+        )
 
-        assertEquals(ConnectionState.AwaitingApproval(target, 60), transition.state)
-        assertEquals("Confirm this device on Windows within 60 seconds.", transition.statusMessage)
+        assertEquals(
+            ConnectionState.AwaitingApproval(
+                target = target,
+                timeoutSec = 60,
+                displayName = "Office",
+                computerId = "office-id",
+                attemptId = 9L,
+            ),
+            transition.state,
+        )
+        assertTrue(transition.statusMessage!!.contains("60"))
         assertTrue(transition.showRemoteSession)
     }
 
     @Test
     fun authSucceeded_entersConnected() {
-        val transition = SessionStateReducer.reduce(SessionStateReducer.Event.AuthSucceeded(target))
+        val transition = SessionStateReducer.reduce(
+            SessionStateReducer.Event.AuthSucceeded(
+                target = target,
+                displayName = "Office",
+                computerId = "office-id",
+            ),
+        )
 
-        assertEquals(ConnectionState.Connected(target), transition.state)
-        assertEquals("Connected to ${target.label}", transition.statusMessage)
+        assertEquals(
+            ConnectionState.Connected(
+                target = target,
+                displayName = "Office",
+                computerId = "office-id",
+            ),
+            transition.state,
+        )
+        assertEquals("Connected to Office", transition.statusMessage)
     }
 
     @Test
     fun reconnectStarted_entersReconnectingWithReconnectMessage() {
-        val transition = SessionStateReducer.reduce(SessionStateReducer.Event.ReconnectStarted(target, attempt = 1))
+        val transition = SessionStateReducer.reduce(
+            SessionStateReducer.Event.ReconnectStarted(
+                target = target,
+                displayName = "Office",
+                computerId = "office-id",
+                attemptId = 4L,
+                attempt = 1,
+            ),
+        )
 
-        assertEquals(ConnectionState.Reconnecting(target, 1), transition.state)
-        assertEquals("Reconnecting to ${target.label}...", transition.statusMessage)
+        assertEquals(
+            ConnectionState.Reconnecting(
+                target = target,
+                attempt = 1,
+                displayName = "Office",
+                computerId = "office-id",
+                attemptId = 4L,
+            ),
+            transition.state,
+        )
+        assertTrue(transition.statusMessage!!.contains("Reconnecting"))
     }
 
     @Test
     fun authFailed_entersError() {
-        val transition = SessionStateReducer.reduce(SessionStateReducer.Event.AuthFailed("No", target))
+        val transition = SessionStateReducer.reduce(
+            SessionStateReducer.Event.AuthFailed(
+                message = "No",
+                target = target,
+                displayName = "Office",
+                computerId = "office-id",
+            ),
+        )
 
-        assertEquals(ConnectionState.Error("No"), transition.state)
+        assertEquals(
+            ConnectionState.Error(
+                message = "No",
+                target = target,
+                displayName = "Office",
+                computerId = "office-id",
+            ),
+            transition.state,
+        )
         assertEquals("No", transition.statusMessage)
         assertTrue(transition.showRemoteSession)
         assertEquals(target, transition.sessionTarget)

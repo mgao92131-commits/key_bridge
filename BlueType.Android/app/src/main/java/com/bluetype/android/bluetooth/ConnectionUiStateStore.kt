@@ -31,8 +31,15 @@ object ConnectionUiStateStore {
     private val _remoteShortcutProfile = MutableStateFlow<RemoteShortcutProfile?>(null)
     val remoteShortcutProfile: StateFlow<RemoteShortcutProfile?> = _remoteShortcutProfile.asStateFlow()
 
+    private val _connectingComputerId = MutableStateFlow<String?>(null)
+    val connectingComputerId: StateFlow<String?> = _connectingComputerId.asStateFlow()
+
     fun setState(value: ConnectionState) {
         _state.value = value
+    }
+
+    fun setConnectingComputerId(computerId: String?) {
+        _connectingComputerId.value = computerId
     }
 
     fun setStatus(message: String?) {
@@ -79,5 +86,6 @@ object ConnectionUiStateStore {
         _remoteClipboardText.value = null
         _lastFeedback.value = null
         _remoteShortcutProfile.value = null
+        _connectingComputerId.value = null
     }
 }

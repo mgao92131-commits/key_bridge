@@ -57,6 +57,7 @@ import com.bluetype.android.ui.theme.BlueTypeRoundedTokens
 fun DeviceListScreen(
     state: ConnectionState,
     statusMessage: String?,
+    connectingComputerId: String?,
     pairedBluetoothDevices: List<ConnectionTarget.Bluetooth>,
     recentDevices: List<StoredDevice>,
     wifiHost: String,
@@ -100,6 +101,14 @@ fun DeviceListScreen(
                     )
                 )
                 StatusIndicator(state = state)
+            }
+
+            if (!statusMessage.isNullOrBlank() && state !is ConnectionState.Idle && state !is ConnectionState.Connected) {
+                Text(
+                    text = statusMessage,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                )
             }
 
             // Main Content: Recent
@@ -175,7 +184,8 @@ fun DeviceListScreen(
                                 content = {
                                     EnhancedRecentItem(
                                         device = device,
-                                        onClick = { onConnectRecentDevice(device) }
+                                        isConnecting = connectingComputerId == device.id,
+                                        onClick = { onConnectRecentDevice(device) },
                                     )
                                 }
                             )
@@ -272,7 +282,8 @@ private fun StatusIndicator(state: ConnectionState) {
 @Composable
 private fun EnhancedRecentItem(
     device: StoredDevice,
-    onClick: () -> Unit
+    isConnecting: Boolean,
+    onClick: () -> Unit,
 ) {
     Box(
         modifier = Modifier
@@ -280,7 +291,7 @@ private fun EnhancedRecentItem(
             .clip(BlueTypeRoundedTokens.cornerLarge)
             .background(MaterialTheme.colorScheme.surface)
             .border(0.5.dp, Color.White.copy(alpha = 0.15f), BlueTypeRoundedTokens.cornerLarge)
-            .clickable(onClick = onClick)
+            .clickable(enabled = !isConnecting, onClick = onClick)
             .padding(18.dp)
     ) {
         Row(
@@ -325,28 +336,27 @@ private fun EnhancedRecentItem(
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = (if (device.type == DeviceType.WIFI) device.host else device.address) ?: "",
+                    text = if (isConnecting) {
+                        "Connecting…"
+                    } else {
+                        (if (device.type == DeviceType.WIFI) device.host else device.address) ?: ""
+                    },
                     style = MaterialTheme.typography.bodySmall.copy(
-                        fontSize = 12.sp,
-                        letterSpacing = 0.3.sp
+                        color = if (isConnecting) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
+                        },
                     ),
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
-            
-            // Go Label
-            Box(
-                modifier = Modifier
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.06f))
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
-            ) {
-                Text(
-                    text = "GO",
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
-                    )
+
+            if (isConnecting) {
+                androidx.compose.material3.CircularProgressIndicator(
+                    modifier = Modifier.size(22.dp),
+                    strokeWidth = 2.dp,
                 )
             }
         }

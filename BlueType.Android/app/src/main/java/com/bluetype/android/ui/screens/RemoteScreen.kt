@@ -68,6 +68,7 @@ import kotlin.math.sqrt
 fun RemoteScreen(
     state: ConnectionState,
     sessionTarget: ConnectionTarget?,
+    statusMessage: String?,
     isInputEnabled: Boolean,
     draftText: String,
     onDraftChange: (String) -> Unit,
@@ -82,6 +83,9 @@ fun RemoteScreen(
     onMouseClick: (String, Int) -> Unit,
     onMouseScroll: (Int) -> Unit,
     onDisconnect: () -> Unit,
+    onCancelConnection: () -> Unit,
+    onRetryConnection: () -> Unit,
+    onBackToDeviceList: () -> Unit,
     profile: ShortcutProfile,
     profileTitle: String?,
 ) {
@@ -111,6 +115,119 @@ fun RemoteScreen(
             profile = profile,
             profileTitle = profileTitle,
         )
+
+        ConnectionStatusOverlay(
+            state = state,
+            statusMessage = statusMessage,
+            onCancel = onCancelConnection,
+            onRetry = onRetryConnection,
+            onBackToDeviceList = onBackToDeviceList,
+        )
+    }
+}
+
+@Composable
+private fun ConnectionStatusOverlay(
+    state: ConnectionState,
+    statusMessage: String?,
+    onCancel: () -> Unit,
+    onRetry: () -> Unit,
+    onBackToDeviceList: () -> Unit,
+) {
+    val overlayVisible = state is ConnectionState.Connecting ||
+        state is ConnectionState.AwaitingApproval ||
+        state is ConnectionState.Reconnecting ||
+        state is ConnectionState.Error
+    if (!overlayVisible) {
+        return
+    }
+
+    val title = when (state) {
+        is ConnectionState.Connecting -> "Connecting to ${state.displayName}"
+        is ConnectionState.AwaitingApproval -> "Waiting for computer approval"
+        is ConnectionState.Reconnecting -> "Reconnecting to ${state.displayName}"
+        is ConnectionState.Error -> "Connection failed"
+        else -> "Connecting"
+    }
+    val detail = when (state) {
+        is ConnectionState.AwaitingApproval ->
+            "Please confirm this device on the computer.\nRemaining: ${state.timeoutSec}s"
+        is ConnectionState.Reconnecting ->
+            statusMessage ?: "Attempt ${state.attempt}"
+        is ConnectionState.Error -> state.message
+        else -> statusMessage ?: ""
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.45f))
+            .clickable(enabled = false, onClick = {}),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(32.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(MaterialTheme.colorScheme.surface)
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            if (state !is ConnectionState.Error) {
+                androidx.compose.material3.CircularProgressIndicator(strokeWidth = 3.dp)
+            }
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            if (detail.isNotBlank()) {
+                Text(
+                    text = detail,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                when (state) {
+                    is ConnectionState.Error -> {
+                        Text(
+                            text = "Retry",
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
+                                .clickable(onClick = onRetry)
+                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text(
+                            text = "Device list",
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
+                                .clickable(onClick = onBackToDeviceList)
+                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                    else -> {
+                        Text(
+                            text = "Cancel",
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
+                                .clickable(onClick = onCancel)
+                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -973,11 +1090,24 @@ private fun performTrackpadHapticFeedback(haptic: HapticFeedback, view: android.
 }
 
 private fun deviceLabel(state: ConnectionState, sessionTarget: ConnectionTarget?): String {
+    val fromState = when (state) {
+        is ConnectionState.Connected -> state.displayName
+        is ConnectionState.Connecting -> state.displayName
+        is ConnectionState.AwaitingApproval -> state.displayName
+        is ConnectionState.Reconnecting -> state.displayName
+        is ConnectionState.Error -> state.displayName
+        else -> null
+    }
+    if (!fromState.isNullOrBlank()) {
+        return fromState
+    }
+
     val target = when (state) {
         is ConnectionState.Connected -> state.target
         is ConnectionState.Connecting -> state.target
         is ConnectionState.AwaitingApproval -> state.target
         is ConnectionState.Reconnecting -> state.target
+        is ConnectionState.Error -> state.target
         else -> sessionTarget
     }
 

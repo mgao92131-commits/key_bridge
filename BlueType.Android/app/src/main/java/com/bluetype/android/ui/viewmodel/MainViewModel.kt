@@ -34,6 +34,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val uiRoute: StateFlow<UiRoute> = connectionController.uiRoute
     val sessionTarget: StateFlow<ConnectionTarget?> = connectionController.sessionTarget
     val statusMessage: StateFlow<String?> = connectionController.statusMessage
+    val connectingComputerId: StateFlow<String?> = connectionController.connectingComputerId
     val remoteClipboardText: StateFlow<String?> = connectionController.remoteClipboardText
     val lastFeedback: StateFlow<CommandFeedback?> = connectionController.lastFeedback
 
@@ -254,6 +255,63 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun disconnect() {
+        viewModelScope.launch {
+            connectionController.disconnect()
+        }
+    }
+
+    fun cancelConnection() {
+        viewModelScope.launch {
+            connectionController.disconnect()
+        }
+    }
+
+    fun retryConnection() {
+        val state = connectionState.value
+        val computerId = when (state) {
+            is ConnectionState.Error -> state.computerId
+            is ConnectionState.Connecting -> state.computerId
+            is ConnectionState.Reconnecting -> state.computerId
+            is ConnectionState.AwaitingApproval -> state.computerId
+            else -> null
+        }
+        val device = _recentDevices.value.firstOrNull { it.id == computerId }
+        if (device != null) {
+            connectDevice(device)
+            return
+        }
+
+        val target = when (state) {
+            is ConnectionState.Error -> state.target
+            is ConnectionState.Connecting -> state.target
+            is ConnectionState.Reconnecting -> state.target
+            is ConnectionState.AwaitingApproval -> state.target
+            else -> sessionTarget.value
+        }
+        val displayName = when (state) {
+            is ConnectionState.Error -> state.displayName
+            is ConnectionState.Connecting -> state.displayName
+            is ConnectionState.Reconnecting -> state.displayName
+            is ConnectionState.AwaitingApproval -> state.displayName
+            else -> null
+        }
+        if (target is ConnectionTarget.Wifi) {
+            viewModelScope.launch {
+                connectionController.connect(
+                    ComputerProfileFactory.createNewWifiProfile(
+                        displayName = displayName?.takeIf { it.isNotBlank() } ?: target.host,
+                        host = target.host,
+                        port = target.port,
+                        idGenerator = { computerId?.takeIf { it.isNotBlank() } ?: java.util.UUID.randomUUID().toString() },
+                    ),
+                )
+            }
+        } else if (target is ConnectionTarget.Bluetooth) {
+            connectBluetooth(target)
+        }
+    }
+
+    fun backToDeviceList() {
         viewModelScope.launch {
             connectionController.disconnect()
         }

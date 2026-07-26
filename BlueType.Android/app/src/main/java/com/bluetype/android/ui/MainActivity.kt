@@ -21,7 +21,8 @@ class MainActivity : ComponentActivity() {
         if (permissions.isNotEmpty() && !PermissionHelper.hasRequiredPermissions(this)) {
             permissionLauncher.launch(permissions)
         }
-        viewModel.ensureForegroundSession()
+        // Foreground restore is handled in onResume only (plus internal debounce) to avoid
+        // duplicate restore attempts racing a user tap right after launch.
         setContent {
             BlueTypeApp(viewModel = viewModel)
         }

@@ -2,15 +2,14 @@ package com.bluetype.android.bluetooth
 
 import android.content.Context
 import com.bluetype.android.data.PreferencesRepository
+import com.bluetype.android.data.StoredDevice
 import com.bluetype.android.domain.CommandFeedback
 import com.bluetype.android.domain.CommandFeedbackState
 import com.bluetype.android.domain.ConnectionState
 import com.bluetype.android.domain.ConnectionTarget
 import com.bluetype.android.domain.RemoteAction
 import com.bluetype.android.domain.RemoteShortcutProfile
-import com.bluetype.android.domain.ShortcutProfile
 import com.bluetype.android.domain.UiRoute
-import com.bluetype.android.data.StoredDevice
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -39,6 +38,7 @@ class ConnectionController private constructor(
     val remoteClipboardText: StateFlow<String?> = ConnectionUiStateStore.remoteClipboardText
     val lastFeedback: StateFlow<CommandFeedback?> = ConnectionUiStateStore.lastFeedback
     val remoteShortcutProfile: StateFlow<RemoteShortcutProfile?> = ConnectionUiStateStore.remoteShortcutProfile
+    val connectingComputerId: StateFlow<String?> = ConnectionUiStateStore.connectingComputerId
     val recentDevices: Flow<List<StoredDevice>> = preferencesRepository.recentDevices()
 
     suspend fun removeRecentDevice(device: StoredDevice) {
@@ -60,6 +60,10 @@ class ConnectionController private constructor(
 
     fun updateUiRoute(route: UiRoute) {
         ConnectionUiStateStore.setUiRoute(route)
+    }
+
+    fun navigateToDeviceList() {
+        ConnectionUiStateStore.setUiRoute(UiRoute.DEVICE_LIST)
     }
 
     suspend fun send(action: RemoteAction) {

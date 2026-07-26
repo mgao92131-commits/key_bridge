@@ -3,10 +3,22 @@ package com.bluetype.android.bluetooth
 import com.bluetype.android.domain.ConnectionTarget
 
 internal object AuthResponseHandler {
-    fun pendingApproval(target: ConnectionTarget, envelope: Envelope): SessionStateReducer.Transition {
+    fun pendingApproval(
+        target: ConnectionTarget,
+        displayName: String,
+        computerId: String,
+        attemptId: Long,
+        envelope: Envelope,
+    ): SessionStateReducer.Transition {
         val payload = ProtocolJson.decodeFromJsonElement(AuthPendingPayload.serializer(), envelope.payload)
         return SessionStateReducer.reduce(
-            SessionStateReducer.Event.AuthPending(target = target, timeoutSec = payload.timeoutSec),
+            SessionStateReducer.Event.AuthPending(
+                target = target,
+                displayName = displayName,
+                computerId = computerId,
+                attemptId = attemptId,
+                timeoutSec = payload.timeoutSec,
+            ),
         )
     }
 
