@@ -2,17 +2,17 @@ package com.bluetype.android.data
 
 import android.content.Context
 import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.bluetype.android.domain.ConnectionTarget
 import java.util.UUID
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 
@@ -34,43 +34,20 @@ class PreferencesRepository internal constructor(
     private val recentDevicesKey = stringPreferencesKey("recent_devices")
     private val persistedSessionKey = stringPreferencesKey("persisted_session")
     private val draftTextKey = stringPreferencesKey("draft_text")
+    private val legacyGlobalEncryptedKey = stringPreferencesKey("saved_token_encrypted")
+    private val legacyPlaintextKey = stringPreferencesKey("saved_token")
+
+    private val migrationMutex = Mutex()
+    @Volatile
+    private var migrated = false
 
     fun recentDevices() = dataStore.data.map { prefs ->
-        val raw = prefs[recentDevicesKey].orEmpty()
-        if (raw.isBlank()) {
-            emptyList()
-        } else {
-            val decoded = runCatching {
-                json.decodeFromString(ListSerializer(StoredDevice.serializer()), raw)
-            }.getOrDefault(emptyList())
-
-            val needsMigration = decoded.any { it.id.isBlank() }
-            if (needsMigration) {
-                val migrated = decoded.map { it.withStableId() }
-                CoroutineScope(Dispatchers.IO).launch {
-                    dataStore.edit { editPrefs ->
-                        editPrefs[recentDevicesKey] = json.encodeToString(ListSerializer(StoredDevice.serializer()), migrated)
-                    }
-                }
-                migrated
-            } else {
-                decoded
-            }
-        }
+        decodeStoredDevices(prefs[recentDevicesKey].orEmpty()).map { it.withStableId() }
     }
 
     fun persistedSession() = dataStore.data.map { prefs ->
-        val raw = prefs[persistedSessionKey].orEmpty()
-        val session = decodePersistedSession(raw) ?: return@map null
-        val migrated = migratedPersistedSession(session, prefs[recentDevicesKey].orEmpty())
-        if (migrated.target.id != session.target.id) {
-            CoroutineScope(Dispatchers.IO).launch {
-                dataStore.edit { editPrefs ->
-                    editPrefs[persistedSessionKey] = json.encodeToString(PersistedSession.serializer(), migrated)
-                }
-            }
-        }
-        migrated
+        val session = decodePersistedSession(prefs[persistedSessionKey].orEmpty()) ?: return@map null
+        migratedPersistedSession(session, prefs[recentDevicesKey].orEmpty())
     }
 
     fun draftText() = dataStore.data.map { prefs ->
@@ -78,171 +55,153 @@ class PreferencesRepository internal constructor(
     }
 
     override suspend fun currentToken(computerId: String): String? {
-        val key = secureTokenStore.getPrefsKeyForTokenKey(computerIdToTokenKey(computerId))
+        ensureMigrated()
+        val key = profileTokenPrefsKey(computerId)
         val encrypted = dataStore.data.first()[key] ?: return null
         return runCatching { secureTokenStore.decrypt(encrypted) }.getOrNull()
     }
 
-    override suspend fun currentPersistedSession(): PersistedSession? {
-        val raw = dataStore.data.first()[persistedSessionKey].orEmpty()
-        val session = decodePersistedSession(raw) ?: return null
-        val migrated = migratedPersistedSession(session, dataStore.data.first()[recentDevicesKey].orEmpty())
-        if (migrated.target.id != session.target.id) {
-            dataStore.edit { prefs ->
-                prefs[persistedSessionKey] = json.encodeToString(PersistedSession.serializer(), migrated)
-            }
-        }
-        return migrated
+    override suspend fun resolveTokenCandidate(
+        computerId: String,
+        target: ConnectionTarget,
+    ): TokenCandidate? {
+        ensureMigrated()
+        val prefs = dataStore.data.first()
+
+        readComputerProfileToken(prefs, computerId)?.let { return it }
+        readLegacyEndpointToken(prefs, target)?.let { return it }
+        readLegacyGlobalEncryptedToken(prefs)?.let { return it }
+        readLegacyPlaintextToken(prefs)?.let { return it }
+        return null
     }
 
     override suspend fun saveToken(computerId: String, token: String) {
-        val key = secureTokenStore.getPrefsKeyForTokenKey(computerIdToTokenKey(computerId))
+        ensureMigrated()
+        val key = profileTokenPrefsKey(computerId)
         val encrypted = secureTokenStore.encrypt(token)
         dataStore.edit { prefs ->
             prefs[key] = encrypted
         }
     }
 
+    override suspend fun commitSuccessfulMigration(
+        computerId: String,
+        candidate: TokenCandidate,
+    ) {
+        ensureMigrated()
+        when (candidate.source) {
+            is TokenSource.ComputerProfile -> {
+                // Already stored under this computer; nothing to migrate.
+                if (candidate.source.computerId == computerId) {
+                    return
+                }
+            }
+            else -> Unit
+        }
+
+        val encrypted = secureTokenStore.encrypt(candidate.token)
+        val profileKey = profileTokenPrefsKey(computerId)
+        dataStore.edit { prefs ->
+            prefs[profileKey] = encrypted
+            removeTokenSourceLocked(prefs, candidate.source)
+        }
+    }
+
+    override suspend fun clearRejectedCandidate(
+        computerId: String,
+        candidate: TokenCandidate?,
+    ) {
+        ensureMigrated()
+        if (candidate == null) {
+            return
+        }
+
+        dataStore.edit { prefs ->
+            removeTokenSourceLocked(prefs, candidate.source)
+        }
+    }
+
     override suspend fun clearToken(computerId: String) {
-        val key = secureTokenStore.getPrefsKeyForTokenKey(computerIdToTokenKey(computerId))
+        ensureMigrated()
+        val key = profileTokenPrefsKey(computerId)
         dataStore.edit { prefs ->
             prefs.remove(key)
         }
     }
 
-    override suspend fun getAndMigrateToken(computerId: String, target: ConnectionTarget): String? {
-        val newKey = computerIdToTokenKey(computerId)
-        val newPrefsKey = secureTokenStore.getPrefsKeyForTokenKey(newKey)
-
+    override suspend fun currentPersistedSession(): PersistedSession? {
+        ensureMigrated()
         val prefs = dataStore.data.first()
-
-        // 1. 尝试读取新 Token
-        val currentNewEncrypted = prefs[newPrefsKey]
-        if (currentNewEncrypted != null) {
-            val decrypted = runCatching {
-                secureTokenStore.decrypt(currentNewEncrypted)
-            }.getOrNull()
-            if (decrypted != null) {
-                return decrypted
-            } else {
-                dataStore.edit { it.remove(newPrefsKey) }
-            }
-        }
-
-        // 2. 尝试读取当前 endpoint 对应的旧 Token
-        val oldEndpointKey = target.tokenStorageKey()
-        val oldEndpointPrefsKey = secureTokenStore.getPrefsKeyForTokenKey(oldEndpointKey)
-        val currentOldEndpointEncrypted = prefs[oldEndpointPrefsKey]
-        if (currentOldEndpointEncrypted != null) {
-            val decrypted = runCatching {
-                secureTokenStore.decrypt(currentOldEndpointEncrypted)
-            }.getOrNull()
-            if (decrypted != null) {
-                val newEncrypted = secureTokenStore.encrypt(decrypted)
-                dataStore.edit { editPrefs ->
-                    editPrefs[newPrefsKey] = newEncrypted
-                    editPrefs.remove(oldEndpointPrefsKey)
-                }
-                return decrypted
-            } else {
-                dataStore.edit { it.remove(oldEndpointPrefsKey) }
-            }
-        }
-
-        // 3. 尝试读取旧全局加密 Token
-        val legacyEncryptedKey = stringPreferencesKey("saved_token_encrypted")
-        val currentLegacyEncrypted = prefs[legacyEncryptedKey]
-        if (currentLegacyEncrypted != null) {
-            val decrypted = runCatching {
-                secureTokenStore.decrypt(currentLegacyEncrypted)
-            }.getOrNull()
-            if (decrypted != null) {
-                val newEncrypted = secureTokenStore.encrypt(decrypted)
-                dataStore.edit { editPrefs ->
-                    editPrefs[newPrefsKey] = newEncrypted
-                    editPrefs.remove(legacyEncryptedKey)
-                }
-                return decrypted
-            } else {
-                dataStore.edit { it.remove(legacyEncryptedKey) }
-            }
-        }
-
-        // 4. 尝试读取旧明文 Token
-        val legacyTokenKey = stringPreferencesKey("saved_token")
-        val legacyPlaintext = prefs[legacyTokenKey]?.takeIf { it.isNotBlank() }
-        if (legacyPlaintext != null) {
-            val newEncrypted = secureTokenStore.encrypt(legacyPlaintext)
-            dataStore.edit { editPrefs ->
-                editPrefs[newPrefsKey] = newEncrypted
-                editPrefs.remove(legacyTokenKey)
-            }
-            return legacyPlaintext
-        }
-
-        return null
+        val session = decodePersistedSession(prefs[persistedSessionKey].orEmpty()) ?: return null
+        return migratedPersistedSession(session, prefs[recentDevicesKey].orEmpty())
     }
 
-    override suspend fun clearOldGlobalToken() {
-        dataStore.edit { editPrefs ->
-            editPrefs.remove(stringPreferencesKey("saved_token_encrypted"))
-            editPrefs.remove(stringPreferencesKey("saved_token"))
-        }
-    }
-
-    private fun computerIdToTokenKey(computerId: String): String {
-        return "profile_$computerId"
-    }
-
-    suspend fun saveRecentDevice(device: StoredDevice) {
-        val existing = dataStore.data.first()[recentDevicesKey].orEmpty()
-        val current = if (existing.isBlank()) {
-            emptyList()
-        } else {
-            runCatching {
-                json.decodeFromString(ListSerializer(StoredDevice.serializer()), existing)
-            }.getOrDefault(emptyList())
-        }
-
+    /**
+     * Atomically persists an authorized computer: profile token (optional), recent device list,
+     * and persisted session (optional). Optionally commits a successful legacy token migration.
+     */
+    suspend fun persistAuthorizedComputer(
+        device: StoredDevice,
+        token: String?,
+        persistedSession: PersistedSession?,
+        migrationCandidate: TokenCandidate? = null,
+    ) {
+        ensureMigrated()
         val deviceToSave = device.withStableId()
-        val updatedCurrent = current.map { it.withStableId() }
-
-        val idx = updatedCurrent.indexOfFirst { it.id == deviceToSave.id }
-        val next = if (idx >= 0) {
-            val updated = updatedCurrent.toMutableList()
-            updated[idx] = deviceToSave
-            updated.sortedByDescending { it.lastConnectedAt }
-        } else {
-            (listOf(deviceToSave) + updatedCurrent).sortedByDescending { it.lastConnectedAt }
+        val encryptedToken = token?.let { secureTokenStore.encrypt(it) }
+        val migrationEncrypted = when {
+            migrationCandidate == null -> null
+            migrationCandidate.source is TokenSource.ComputerProfile &&
+                migrationCandidate.source.computerId == deviceToSave.id -> null
+            token != null -> null // New token takes precedence; do not migrate unverified legacy.
+            else -> secureTokenStore.encrypt(migrationCandidate.token)
         }
 
         dataStore.edit { prefs ->
-            prefs[recentDevicesKey] = json.encodeToString(ListSerializer(StoredDevice.serializer()), next)
+            val current = decodeStoredDevices(prefs[recentDevicesKey].orEmpty()).map { it.withStableId() }
+            prefs[recentDevicesKey] = encodeStoredDevices(upsertDevice(current, deviceToSave))
+
+            if (persistedSession != null) {
+                prefs[persistedSessionKey] = json.encodeToString(
+                    PersistedSession.serializer(),
+                    persistedSession.copy(target = deviceToSave),
+                )
+            }
+
+            val profileKey = profileTokenPrefsKey(deviceToSave.id)
+            when {
+                encryptedToken != null -> prefs[profileKey] = encryptedToken
+                migrationEncrypted != null && migrationCandidate != null -> {
+                    prefs[profileKey] = migrationEncrypted
+                    removeTokenSourceLocked(prefs, migrationCandidate.source)
+                }
+            }
+        }
+    }
+
+    suspend fun saveRecentDevice(device: StoredDevice) {
+        ensureMigrated()
+        val deviceToSave = device.withStableId()
+        dataStore.edit { prefs ->
+            val current = decodeStoredDevices(prefs[recentDevicesKey].orEmpty()).map { it.withStableId() }
+            prefs[recentDevicesKey] = encodeStoredDevices(upsertDevice(current, deviceToSave))
         }
     }
 
     suspend fun removeRecentDevice(device: StoredDevice) {
-        val existing = dataStore.data.first()[recentDevicesKey].orEmpty()
-        if (existing.isBlank()) return
-
-        val current = runCatching {
-            json.decodeFromString(ListSerializer(StoredDevice.serializer()), existing)
-        }.getOrDefault(emptyList())
-
+        ensureMigrated()
         val deviceId = device.withStableId().id
-        val next = current.map { it.withStableId() }.filterNot { it.id == deviceId }
-
-        // 删除该电脑在 Android 本地的 Token
-        clearToken(deviceId)
-
-        // 检查 PersistedSession 是否引用了该电脑，若是则清除该持久会话
-        val persisted = currentPersistedSession()
-        if (persisted != null && persisted.target.id == deviceId) {
-            clearPersistedSession()
-        }
-
+        val profileKey = profileTokenPrefsKey(deviceId)
         dataStore.edit { prefs ->
-            prefs[recentDevicesKey] = json.encodeToString(ListSerializer(StoredDevice.serializer()), next)
+            val current = decodeStoredDevices(prefs[recentDevicesKey].orEmpty()).map { it.withStableId() }
+            prefs[recentDevicesKey] = encodeStoredDevices(current.filterNot { it.id == deviceId })
+
+            prefs.remove(profileKey)
+
+            val session = decodePersistedSession(prefs[persistedSessionKey].orEmpty())
+            if (session != null && session.target.withStableId().id == deviceId) {
+                prefs.remove(persistedSessionKey)
+            }
         }
     }
 
@@ -257,6 +216,7 @@ class PreferencesRepository internal constructor(
     }
 
     override suspend fun savePersistedSession(session: PersistedSession) {
+        ensureMigrated()
         dataStore.edit { prefs ->
             prefs[persistedSessionKey] = json.encodeToString(
                 PersistedSession.serializer(),
@@ -284,11 +244,135 @@ class PreferencesRepository internal constructor(
         return generated
     }
 
+    private suspend fun ensureMigrated() {
+        if (migrated) {
+            return
+        }
+        migrationMutex.withLock {
+            if (migrated) {
+                return
+            }
+            dataStore.edit { prefs ->
+                val devicesRaw = prefs[recentDevicesKey].orEmpty()
+                val devices = decodeStoredDevices(devicesRaw)
+                if (devices.any { it.id.isBlank() }) {
+                    prefs[recentDevicesKey] = encodeStoredDevices(devices.map { it.withStableId() })
+                }
+
+                val sessionRaw = prefs[persistedSessionKey].orEmpty()
+                val session = decodePersistedSession(sessionRaw)
+                if (session != null && session.target.id.isBlank()) {
+                    val migratedSession = migratedPersistedSession(
+                        session,
+                        prefs[recentDevicesKey].orEmpty(),
+                    )
+                    prefs[persistedSessionKey] = json.encodeToString(
+                        PersistedSession.serializer(),
+                        migratedSession,
+                    )
+                }
+            }
+            migrated = true
+        }
+    }
+
+    private fun readComputerProfileToken(
+        prefs: Preferences,
+        computerId: String,
+    ): TokenCandidate? {
+        val key = profileTokenPrefsKey(computerId)
+        val encrypted = prefs[key] ?: return null
+        val decrypted = runCatching { secureTokenStore.decrypt(encrypted) }.getOrNull() ?: return null
+        return TokenCandidate(
+            token = decrypted,
+            source = TokenSource.ComputerProfile(computerId),
+        )
+    }
+
+    private fun readLegacyEndpointToken(
+        prefs: Preferences,
+        target: ConnectionTarget,
+    ): TokenCandidate? {
+        val storageKey = target.tokenStorageKey()
+        val prefsKey = secureTokenStore.getPrefsKeyForTokenKey(storageKey)
+        val encrypted = prefs[prefsKey] ?: return null
+        val decrypted = runCatching { secureTokenStore.decrypt(encrypted) }.getOrNull() ?: return null
+        return TokenCandidate(
+            token = decrypted,
+            source = TokenSource.LegacyEndpoint(storageKey),
+        )
+    }
+
+    private fun readLegacyGlobalEncryptedToken(prefs: Preferences): TokenCandidate? {
+        val encrypted = prefs[legacyGlobalEncryptedKey] ?: return null
+        val decrypted = runCatching { secureTokenStore.decrypt(encrypted) }.getOrNull() ?: return null
+        return TokenCandidate(
+            token = decrypted,
+            source = TokenSource.LegacyGlobalEncrypted,
+        )
+    }
+
+    private fun readLegacyPlaintextToken(prefs: Preferences): TokenCandidate? {
+        val plaintext = prefs[legacyPlaintextKey]?.takeIf { it.isNotBlank() } ?: return null
+        return TokenCandidate(
+            token = plaintext,
+            source = TokenSource.LegacyPlaintext,
+        )
+    }
+
+    private fun removeTokenSourceLocked(prefs: MutablePreferences, source: TokenSource) {
+        when (source) {
+            is TokenSource.ComputerProfile -> {
+                prefs.remove(profileTokenPrefsKey(source.computerId))
+            }
+            is TokenSource.LegacyEndpoint -> {
+                prefs.remove(secureTokenStore.getPrefsKeyForTokenKey(source.storageKey))
+            }
+            TokenSource.LegacyGlobalEncrypted -> {
+                prefs.remove(legacyGlobalEncryptedKey)
+            }
+            TokenSource.LegacyPlaintext -> {
+                prefs.remove(legacyPlaintextKey)
+            }
+        }
+    }
+
+    private fun profileTokenPrefsKey(computerId: String): Preferences.Key<String> {
+        return secureTokenStore.getPrefsKeyForTokenKey(computerIdToTokenKey(computerId))
+    }
+
+    private fun computerIdToTokenKey(computerId: String): String {
+        return "profile_$computerId"
+    }
+
+    private fun decodeStoredDevices(raw: String): List<StoredDevice> {
+        if (raw.isBlank()) {
+            return emptyList()
+        }
+        return runCatching {
+            json.decodeFromString(ListSerializer(StoredDevice.serializer()), raw)
+        }.getOrDefault(emptyList())
+    }
+
+    private fun encodeStoredDevices(devices: List<StoredDevice>): String {
+        return json.encodeToString(ListSerializer(StoredDevice.serializer()), devices)
+    }
+
+    private fun upsertDevice(current: List<StoredDevice>, device: StoredDevice): List<StoredDevice> {
+        val idx = current.indexOfFirst { it.id == device.id }
+        return if (idx >= 0) {
+            val updated = current.toMutableList()
+            updated[idx] = device
+            updated.sortedByDescending { it.lastConnectedAt }
+        } else {
+            (listOf(device) + current).sortedByDescending { it.lastConnectedAt }
+        }
+    }
+
     private fun decodePersistedSession(raw: String): PersistedSession? {
         if (raw.isBlank()) {
             return null
         }
-
         return runCatching {
             json.decodeFromString(PersistedSession.serializer(), raw)
         }.getOrNull()
@@ -302,22 +386,13 @@ class PreferencesRepository internal constructor(
             return session
         }
 
-        val devices = if (devicesRaw.isBlank()) {
-            emptyList()
-        } else {
-            runCatching {
-                json.decodeFromString(ListSerializer(StoredDevice.serializer()), devicesRaw)
-            }.getOrDefault(emptyList())
-        }
-
+        val devices = decodeStoredDevices(devicesRaw)
         val matchedDevice = devices.firstOrNull {
             (it.type == session.target.type) &&
                 ((it.type == DeviceType.WIFI && it.host == session.target.host) ||
                     (it.type == DeviceType.BLUETOOTH && it.address == session.target.address))
         }
 
-        // Prefer an already-assigned recent-device id; otherwise use the deterministic endpoint id
-        // so concurrent recent/session migrations always converge on the same value.
         val targetId = matchedDevice?.id?.takeIf { it.isNotBlank() }
             ?: matchedDevice?.withStableId()?.id
             ?: session.target.withStableId().id

@@ -1,17 +1,21 @@
 package com.bluetype.android.bluetooth
 
+import com.bluetype.android.data.TokenCandidate
 import com.bluetype.android.domain.ConnectionTarget
 import kotlinx.coroutines.CompletableDeferred
 import java.util.concurrent.ConcurrentHashMap
 
 internal data class ActiveConnection(
-    val computerId: String,
-    val displayName: String,
-    val target: ConnectionTarget,
+    val profile: ComputerConnectionProfile,
     val helloId: String,
     val session: SessionClient,
+    val tokenCandidate: TokenCandidate? = null,
     val pendingRequests: MutableMap<String, PendingRequest> = ConcurrentHashMap(),
 ) {
+    val computerId: String get() = profile.computerId
+    val displayName: String get() = profile.displayName
+    val target: ConnectionTarget get() = profile.target
+
     var token: String?
         get() = session.token
         set(value) {

@@ -75,7 +75,7 @@ class AuthResponseHandlerTest {
         )
 
         assertEquals("Invalid token.", action.message)
-        assertTrue(action.clearToken)
+        assertTrue(action.clearRejectedCandidate)
         assertTrue(action.clearPersistedSession)
         assertTrue(action.clearDesiredTarget)
     }
@@ -87,7 +87,7 @@ class AuthResponseHandlerTest {
         )
 
         assertEquals("Another device is already controlling this PC.", action.message)
-        assertFalse(action.clearToken)
+        assertFalse(action.clearRejectedCandidate)
         assertTrue(action.clearPersistedSession)
         assertTrue(action.clearDesiredTarget)
     }
@@ -102,7 +102,7 @@ class AuthResponseHandlerTest {
         )
 
         assertEquals("Authorization expired. Reconnect to approve this device again.", handled?.message)
-        assertTrue(handled?.clearToken == true)
+        assertTrue(handled?.clearRejectedCandidate == true)
         assertNull(ignored)
     }
 }

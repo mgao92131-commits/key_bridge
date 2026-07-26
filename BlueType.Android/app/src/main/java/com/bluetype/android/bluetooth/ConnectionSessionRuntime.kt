@@ -7,8 +7,13 @@ import android.os.Build
 import android.util.Log
 import com.bluetype.android.BuildConfig
 import com.bluetype.android.data.DeviceIdentityRepository
+import com.bluetype.android.data.DeviceType
+import com.bluetype.android.data.PersistedSession
 import com.bluetype.android.data.PreferencesRepository
+import com.bluetype.android.data.StoredDevice
+import com.bluetype.android.data.TokenCandidate
 import com.bluetype.android.data.TokenRepository
+import com.bluetype.android.data.TokenSource
 import com.bluetype.android.domain.CommandFeedback
 import com.bluetype.android.domain.CommandFeedbackState
 import com.bluetype.android.domain.ConnectionState
@@ -103,6 +108,13 @@ internal class ConnectionSessionRuntime(
 
         sessionMutex.withLock {
             disconnectInternal(updateState = false, clearSession = false)
+        }
+    }
+
+    suspend fun disconnectIfComputer(computerId: String) {
+        val activeId = activeConnection?.computerId
+        if (activeId == computerId || desiredConnection?.computerId == computerId) {
+            disconnect()
         }
     }
 
@@ -215,7 +227,7 @@ internal class ConnectionSessionRuntime(
             }
             attachConnectedTransport(
                 profile = profile,
-                token = tokenRepository.getAndMigrateToken(profile.computerId, profile.target),
+                candidate = tokenRepository.resolveTokenCandidate(profile.computerId, profile.target),
                 input = transport.input,
                 output = transport.output,
                 close = transport.close,
@@ -242,12 +254,17 @@ internal class ConnectionSessionRuntime(
 
     private suspend fun attachConnectedTransport(
         profile: ComputerConnectionProfile,
-        token: String?,
+        candidate: TokenCandidate?,
         input: InputStream,
         output: OutputStream,
         close: () -> Unit,
     ) {
-        Log.d(logTag, "attachConnectedTransport start profile=$profile tokenPresent=${!token.isNullOrBlank()}")
+        val token = candidate?.token
+        Log.d(
+            logTag,
+            "attachConnectedTransport start profile=$profile tokenPresent=${!token.isNullOrBlank()} " +
+                "tokenSource=${candidate?.source?.let { it::class.simpleName }}",
+        )
         val helloId = UUID.randomUUID().toString()
         var connectionRef: ActiveConnection? = null
         val session = SessionClient(
@@ -269,11 +286,10 @@ internal class ConnectionSessionRuntime(
             },
         )
         val connection = ActiveConnection(
-            computerId = profile.computerId,
-            displayName = profile.displayName,
-            target = profile.target,
+            profile = profile,
             helloId = helloId,
             session = session,
+            tokenCandidate = candidate,
         )
         connectionRef = connection
         activeConnection = connection
@@ -325,16 +341,22 @@ internal class ConnectionSessionRuntime(
                 val result = AuthResponseHandler.authResult(envelope)
                 if (result.token != null) {
                     connection.token = result.token
-                    if (result.persistToken) {
-                        tokenRepository.saveToken(connection.computerId, result.token)
-                    }
                 }
-                markConnected(connection)
+                val outcome = AuthenticationOutcomeResolver.fromAuthResult(
+                    token = result.token,
+                    persistToken = result.persistToken,
+                    candidate = connection.tokenCandidate,
+                )
+                finalizeAuthenticatedConnection(connection, outcome)
             }
 
             MsgType.ACK -> {
                 if (envelope.id == connection.helloId) {
-                    markConnected(connection)
+                    val outcome = AuthenticationOutcomeResolver.fromHelloAck(connection.tokenCandidate)
+                    if (connection.tokenCandidate?.token != null) {
+                        connection.token = connection.tokenCandidate.token
+                    }
+                    finalizeAuthenticatedConnection(connection, outcome)
                 } else {
                     val request = connection.pendingRequests.remove(envelope.id)
                     request?.ackCompletion?.complete(true)
@@ -401,9 +423,8 @@ internal class ConnectionSessionRuntime(
     private suspend fun handleError(connection: ActiveConnection, requestId: String, payload: ErrorPayload) {
         if (requestId == connection.helloId) {
             val action = AuthResponseHandler.helloError(payload)
-            if (action.clearToken) {
-                tokenRepository.clearToken(connection.computerId)
-                tokenRepository.clearOldGlobalToken()
+            if (action.clearRejectedCandidate) {
+                tokenRepository.clearRejectedCandidate(connection.computerId, connection.tokenCandidate)
             }
             if (action.clearPersistedSession) {
                 preferencesRepository.clearPersistedSession()
@@ -418,8 +439,8 @@ internal class ConnectionSessionRuntime(
 
         val authAction = AuthResponseHandler.commandAuthorizationError(payload)
         if (authAction != null) {
+            // Mid-session expiry only invalidates this computer's profile token.
             tokenRepository.clearToken(connection.computerId)
-            tokenRepository.clearOldGlobalToken()
             preferencesRepository.clearPersistedSession()
             desiredConnection = null
             disconnectInternal(updateState = false, clearSession = false)
@@ -457,25 +478,92 @@ internal class ConnectionSessionRuntime(
         )
     }
 
-    private fun markConnected(connection: ActiveConnection) {
+    private suspend fun finalizeAuthenticatedConnection(
+        connection: ActiveConnection,
+        authOutcome: AuthenticationOutcome,
+    ) {
         if (shouldAbortConnection(connection)) {
             return
         }
 
         reconnectJob = null
         applyTransition(SessionStateReducer.reduce(SessionStateReducer.Event.AuthSucceeded(connection.target)))
-        runtimeScope.launch {
-            val device = com.bluetype.android.data.StoredDevice(
-                id = connection.computerId,
-                name = connection.displayName,
-                type = if (connection.target is ConnectionTarget.Wifi) com.bluetype.android.data.DeviceType.WIFI else com.bluetype.android.data.DeviceType.BLUETOOTH,
-                host = (connection.target as? ConnectionTarget.Wifi)?.host,
-                port = (connection.target as? ConnectionTarget.Wifi)?.port,
-                address = (connection.target as? ConnectionTarget.Bluetooth)?.address,
-                lastConnectedAt = System.currentTimeMillis()
-            )
-            preferencesRepository.saveRecentDevice(device)
-            persistedSessionCoordinator.persistSession(device = device)
+
+        val device = StoredDevice(
+            id = connection.computerId,
+            name = connection.displayName,
+            type = if (connection.target is ConnectionTarget.Wifi) DeviceType.WIFI else DeviceType.BLUETOOTH,
+            host = (connection.target as? ConnectionTarget.Wifi)?.host,
+            port = (connection.target as? ConnectionTarget.Wifi)?.port,
+            address = (connection.target as? ConnectionTarget.Bluetooth)?.address,
+            lastConnectedAt = System.currentTimeMillis(),
+        )
+
+        when (authOutcome) {
+            is AuthenticationOutcome.Temporary -> {
+                // Allow Once: stay connected, but never create permanent config / auto-restore.
+                if (connection.profile.persistenceIntent == ProfilePersistenceIntent.EXISTING_SAVED_COMPUTER) {
+                    preferencesRepository.clearPersistedSession()
+                }
+                Log.i(logTag, "temporary authorization computerId=${connection.computerId}")
+            }
+
+            is AuthenticationOutcome.Persistent -> {
+                val session = PersistedSession(
+                    target = device,
+                    uiRoute = UiRoute.REMOTE_SESSION,
+                    autoRestore = true,
+                    manuallyDisconnected = false,
+                )
+                val saved = runCatching {
+                    preferencesRepository.persistAuthorizedComputer(
+                        device = device,
+                        token = authOutcome.token,
+                        persistedSession = session,
+                        // New server token was issued; do not migrate an unverified legacy candidate.
+                        migrationCandidate = null,
+                    )
+                }
+                if (saved.isFailure) {
+                    Log.e(logTag, "Failed to persist authorization", saved.exceptionOrNull())
+                    ConnectionUiStateStore.setStatus(
+                        "Connected, but failed to save authorization on this Android device. " +
+                            "You may need to approve again next time.",
+                    )
+                }
+            }
+
+            is AuthenticationOutcome.ExistingCredential -> {
+                val session = PersistedSession(
+                    target = device,
+                    uiRoute = UiRoute.REMOTE_SESSION,
+                    autoRestore = true,
+                    manuallyDisconnected = false,
+                )
+                val candidate = connection.tokenCandidate
+                val migrationCandidate = candidate?.takeIf { it.source !is TokenSource.ComputerProfile }
+                val saved = runCatching {
+                    preferencesRepository.persistAuthorizedComputer(
+                        device = device,
+                        token = null,
+                        persistedSession = session,
+                        migrationCandidate = migrationCandidate,
+                    )
+                }
+                if (saved.isFailure) {
+                    Log.e(logTag, "Failed to persist existing credential session", saved.exceptionOrNull())
+                    ConnectionUiStateStore.setStatus(
+                        "Connected, but failed to save authorization on this Android device. " +
+                            "You may need to approve again next time.",
+                    )
+                } else if (migrationCandidate != null) {
+                    Log.i(
+                        logTag,
+                        "committed token migration computerId=${connection.computerId} " +
+                            "source=${migrationCandidate.source::class.simpleName}",
+                    )
+                }
+            }
         }
     }
 
@@ -566,6 +654,7 @@ internal class ConnectionSessionRuntime(
                         computerId = connection.computerId,
                         displayName = connection.displayName,
                         target = connection.target,
+                        persistenceIntent = ProfilePersistenceIntent.EXISTING_SAVED_COMPUTER,
                     )
                     desiredConnection = profile
                     startReconnectLocked(profile, ReconnectSource.StateRecovery)
@@ -636,6 +725,7 @@ internal class ConnectionSessionRuntime(
             computerId = snapshot.computer.id,
             displayName = snapshot.computer.name,
             target = snapshot.target,
+            persistenceIntent = ProfilePersistenceIntent.EXISTING_SAVED_COMPUTER,
         )
         desiredConnection = profile
         ConnectionUiStateStore.setSessionTarget(snapshot.target)

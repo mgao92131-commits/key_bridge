@@ -42,6 +42,7 @@ class ConnectionController private constructor(
     val recentDevices: Flow<List<StoredDevice>> = preferencesRepository.recentDevices()
 
     suspend fun removeRecentDevice(device: StoredDevice) {
+        sessionRuntime.disconnectIfComputer(device.id)
         preferencesRepository.removeRecentDevice(device)
     }
 

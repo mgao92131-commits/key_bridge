@@ -20,11 +20,13 @@ internal object AuthResponseHandler {
     }
 
     fun helloError(payload: ErrorPayload): AuthErrorAction {
-        val clearAuthState = payload.code == ErrorCodes.NotAuthorized
-        val stopRestore = clearAuthState || payload.code == ErrorCodes.Busy
+        val notAuthorized = payload.code == ErrorCodes.NotAuthorized
+        val busy = payload.code == ErrorCodes.Busy
+        val stopRestore = notAuthorized || busy
         return AuthErrorAction(
             message = payload.message.ifBlank { defaultErrorMessage(payload.code) },
-            clearToken = clearAuthState,
+            // Clear only the attempted candidate source; never wipe unrelated credentials.
+            clearRejectedCandidate = notAuthorized,
             clearPersistedSession = stopRestore,
             clearDesiredTarget = stopRestore,
         )
@@ -37,7 +39,7 @@ internal object AuthResponseHandler {
 
         return AuthErrorAction(
             message = "Authorization expired. Reconnect to approve this device again.",
-            clearToken = true,
+            clearRejectedCandidate = true,
             clearPersistedSession = true,
             clearDesiredTarget = true,
         )
@@ -63,7 +65,7 @@ internal object AuthResponseHandler {
 
     data class AuthErrorAction(
         val message: String,
-        val clearToken: Boolean,
+        val clearRejectedCandidate: Boolean,
         val clearPersistedSession: Boolean,
         val clearDesiredTarget: Boolean,
     )

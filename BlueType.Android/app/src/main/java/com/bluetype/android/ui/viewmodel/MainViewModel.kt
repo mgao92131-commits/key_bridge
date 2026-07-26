@@ -7,6 +7,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.bluetype.android.bluetooth.ComputerProfileFactory
 import com.bluetype.android.bluetooth.ConnectionController
 import com.bluetype.android.domain.CommandFeedback
 import com.bluetype.android.domain.ConnectionState
@@ -16,7 +17,6 @@ import com.bluetype.android.domain.RemoteAction
 import com.bluetype.android.domain.UiRoute
 import com.bluetype.android.domain.ShortcutProfile
 import com.bluetype.android.data.StoredDevice
-import com.bluetype.android.data.DeviceType
 import com.bluetype.android.data.PreferencesRepository
 import com.bluetype.android.util.PermissionHelper
 import kotlinx.coroutines.Job
@@ -118,24 +118,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
-        val existing = _recentDevices.value.firstOrNull {
-            it.type == DeviceType.WIFI && it.host == host
-        }
-        val displayName = _wifiName.value.trim().ifBlank {
-            existing?.name?.takeIf { it.isNotBlank() } ?: host
-        }
-        val computerId = existing?.id?.takeIf { it.isNotBlank() }
-            ?: java.util.UUID.randomUUID().toString()
+        val displayName = _wifiName.value.trim().ifBlank { host }
+        val profile = ComputerProfileFactory.createNewWifiProfile(
+            displayName = displayName,
+            host = host,
+            port = 24862,
+        )
 
         viewModelScope.launch {
-            android.util.Log.i("BlueTypeUI", "Initiating connection to host=$host port=24862 name=$displayName id=$computerId")
-            connectionController.connect(
-                com.bluetype.android.bluetooth.ComputerConnectionProfile(
-                    computerId = computerId,
-                    displayName = displayName,
-                    target = ConnectionTarget.Wifi(host = host, port = 24862),
-                )
+            android.util.Log.i(
+                "BlueTypeUI",
+                "Initiating connection to host=$host port=24862 name=${profile.displayName} id=${profile.computerId}",
             )
+            connectionController.connect(profile)
         }
     }
 
@@ -146,18 +141,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun connectDevice(device: StoredDevice) {
-        val target = when (device.type) {
-            DeviceType.WIFI -> ConnectionTarget.Wifi(host = device.host.orEmpty(), port = device.port ?: 24862)
-            DeviceType.BLUETOOTH -> ConnectionTarget.Bluetooth(name = device.name, address = device.address.orEmpty())
-        }
         viewModelScope.launch {
-            connectionController.connect(
-                com.bluetype.android.bluetooth.ComputerConnectionProfile(
-                    computerId = device.id,
-                    displayName = device.name,
-                    target = target,
-                )
-            )
+            connectionController.connect(ComputerProfileFactory.createFromSavedDevice(device))
         }
     }
 
@@ -174,23 +159,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun connectBluetooth(device: ConnectionTarget.Bluetooth) {
         viewModelScope.launch {
-            val existing = _recentDevices.value.firstOrNull {
-                it.type == DeviceType.BLUETOOTH && it.address == device.address
-            }
-            val profile = if (existing != null) {
-                com.bluetype.android.bluetooth.ComputerConnectionProfile(
-                    computerId = existing.id,
-                    displayName = existing.name,
-                    target = device,
-                )
-            } else {
-                com.bluetype.android.bluetooth.ComputerConnectionProfile(
-                    computerId = java.util.UUID.randomUUID().toString(),
+            connectionController.connect(
+                ComputerProfileFactory.createNewBluetoothProfile(
                     displayName = device.name,
-                    target = device,
-                )
-            }
-            connectionController.connect(profile)
+                    address = device.address,
+                ),
+            )
         }
     }
 

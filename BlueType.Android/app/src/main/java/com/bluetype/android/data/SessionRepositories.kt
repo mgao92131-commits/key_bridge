@@ -5,13 +5,27 @@ import com.bluetype.android.domain.ConnectionTarget
 internal interface TokenRepository {
     suspend fun currentToken(computerId: String): String?
 
-    suspend fun saveToken(computerId: String, token: String)
+    suspend fun resolveTokenCandidate(
+        computerId: String,
+        target: ConnectionTarget,
+    ): TokenCandidate?
+
+    suspend fun saveToken(
+        computerId: String,
+        token: String,
+    )
+
+    suspend fun commitSuccessfulMigration(
+        computerId: String,
+        candidate: TokenCandidate,
+    )
+
+    suspend fun clearRejectedCandidate(
+        computerId: String,
+        candidate: TokenCandidate?,
+    )
 
     suspend fun clearToken(computerId: String)
-
-    suspend fun getAndMigrateToken(computerId: String, target: ConnectionTarget): String?
-
-    suspend fun clearOldGlobalToken()
 }
 
 internal interface DeviceIdentityRepository {

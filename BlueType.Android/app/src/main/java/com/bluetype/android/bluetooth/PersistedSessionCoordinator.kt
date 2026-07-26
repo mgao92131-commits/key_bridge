@@ -66,6 +66,7 @@ internal class PersistedSessionCoordinator(
             computerId = persisted.target.id,
             displayName = persisted.target.name,
             target = target,
+            persistenceIntent = ProfilePersistenceIntent.EXISTING_SAVED_COMPUTER,
         )
     }
 
