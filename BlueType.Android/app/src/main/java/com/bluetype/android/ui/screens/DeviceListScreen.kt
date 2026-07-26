@@ -60,7 +60,9 @@ fun DeviceListScreen(
     pairedBluetoothDevices: List<ConnectionTarget.Bluetooth>,
     recentDevices: List<StoredDevice>,
     wifiHost: String,
+    wifiName: String,
     onWifiHostChange: (String) -> Unit,
+    onWifiNameChange: (String) -> Unit,
     onConnectWifi: () -> Unit,
     onConnectRecentDevice: (StoredDevice) -> Unit,
     onRemoveRecentDevice: (StoredDevice) -> Unit,
@@ -133,7 +135,7 @@ fun DeviceListScreen(
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                         contentPadding = PaddingValues(bottom = 120.dp)
                     ) {
-                        items(recentDevices, key = { it.address ?: it.host ?: it.name }) { device ->
+                        items(recentDevices, key = { device -> device.id }) { device ->
                             val dismissState = rememberSwipeToDismissBoxState(
                                 confirmValueChange = { value ->
                                     if (value == SwipeToDismissBoxValue.StartToEnd) {
@@ -218,6 +220,8 @@ fun DeviceListScreen(
 
         if (showWifiDialog) {
             WifiManualConnectDialog(
+                name = wifiName,
+                onNameChange = onWifiNameChange,
                 host = wifiHost,
                 onHostChange = onWifiHostChange,
                 onConnect = {
@@ -429,6 +433,8 @@ private fun BluetoothDiscoveryDialog(
 
 @Composable
 private fun WifiManualConnectDialog(
+    name: String,
+    onNameChange: (String) -> Unit,
     host: String,
     onHostChange: (String) -> Unit,
     onConnect: () -> Unit,
@@ -440,10 +446,20 @@ private fun WifiManualConnectDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 OutlinedTextField(
+                    value = name,
+                    onValueChange = onNameChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Computer Name (Optional)") },
+                    label = { Text("Computer Name") },
+                    singleLine = true,
+                    shape = BlueTypeRoundedTokens.cornerMedium
+                )
+                OutlinedTextField(
                     value = host,
                     onValueChange = onHostChange,
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = { Text("IP Address") },
+                    label = { Text("Host") },
                     singleLine = true,
                     shape = BlueTypeRoundedTokens.cornerMedium
                 )

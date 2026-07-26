@@ -15,77 +15,22 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 import kotlinx.coroutines.flow.first
 
+internal interface EncryptedTokenStore {
+    fun getPrefsKeyForTokenKey(tokenKey: String): Preferences.Key<String>
+    fun encrypt(token: String): String
+    fun decrypt(value: String): String
+}
+
 internal class SecureTokenStore(
     private val context: Context,
-) {
-    private val encryptedTokenKey = stringPreferencesKey("saved_token_encrypted")
+) : EncryptedTokenStore {
 
-    suspend fun currentToken(tokenKey: String, legacyTokenKey: Preferences.Key<String>): String? {
-        val prefs = context.dataStore.data.first()
-        val targetTokenKey = encryptedTokenKey(tokenKey)
-        prefs[targetTokenKey]?.let { encrypted ->
-            return runCatching {
-                decrypt(encrypted)
-            }.getOrElse { error ->
-                Log.w(LOG_TAG, "Failed to decrypt stored token for $tokenKey. Clearing target token.", error)
-                clearToken(tokenKey)
-                null
-            }
-        }
-
-        prefs[encryptedTokenKey]?.let { encrypted ->
-            return runCatching {
-                decrypt(encrypted)
-            }.getOrElse { error ->
-                Log.w(LOG_TAG, "Failed to decrypt legacy stored token. Clearing legacy token.", error)
-                clearLegacyStoredKeys(legacyTokenKey)
-                null
-            }
-        }
-
-        val legacyToken = prefs[legacyTokenKey]?.takeIf(String::isNotBlank) ?: return null
-        migrateLegacyToken(legacyTokenKey, legacyToken)
-        return legacyToken
-    }
-
-    suspend fun saveToken(tokenKey: String, token: String) {
-        val encrypted = encrypt(token)
-        context.dataStore.edit { prefs ->
-            prefs[encryptedTokenKey(tokenKey)] = encrypted
-        }
-    }
-
-    suspend fun clearToken(tokenKey: String) {
-        context.dataStore.edit { prefs ->
-            prefs.remove(encryptedTokenKey(tokenKey))
-        }
-    }
-
-    private suspend fun migrateLegacyToken(legacyTokenKey: Preferences.Key<String>, token: String) {
-        runCatching {
-            val encrypted = encrypt(token)
-            context.dataStore.edit { prefs ->
-                prefs[encryptedTokenKey] = encrypted
-                prefs.remove(legacyTokenKey)
-            }
-        }.onFailure { error ->
-            Log.w(LOG_TAG, "Failed to migrate legacy token into secure storage.", error)
-        }
-    }
-
-    private suspend fun clearLegacyStoredKeys(legacyTokenKey: Preferences.Key<String>) {
-        context.dataStore.edit { prefs ->
-            prefs.remove(encryptedTokenKey)
-            prefs.remove(legacyTokenKey)
-        }
-    }
-
-    private fun encryptedTokenKey(tokenKey: String): Preferences.Key<String> {
+    override fun getPrefsKeyForTokenKey(tokenKey: String): Preferences.Key<String> {
         val encoded = Base64.getUrlEncoder().withoutPadding().encodeToString(tokenKey.toByteArray(Charsets.UTF_8))
         return stringPreferencesKey("saved_token_encrypted_$encoded")
     }
 
-    private fun encrypt(token: String): String {
+    override fun encrypt(token: String): String {
         val cipher = Cipher.getInstance(TRANSFORMATION)
         cipher.init(Cipher.ENCRYPT_MODE, getOrCreateSecretKey())
         val ciphertext = cipher.doFinal(token.toByteArray(Charsets.UTF_8))
@@ -98,7 +43,7 @@ internal class SecureTokenStore(
         }
     }
 
-    private fun decrypt(value: String): String {
+    override fun decrypt(value: String): String {
         val parts = value.split(':', limit = 3)
         require(parts.size == 3 && parts[0] == VERSION_PREFIX) { "Unsupported encrypted token format." }
 

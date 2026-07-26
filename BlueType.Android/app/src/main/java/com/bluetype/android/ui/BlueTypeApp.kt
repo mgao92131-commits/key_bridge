@@ -24,6 +24,7 @@ fun BlueTypeApp(viewModel: MainViewModel) {
     val pairedBluetoothDevices by viewModel.pairedBluetoothDevices.collectAsState()
     val recentDevices by viewModel.recentDevices.collectAsState()
     val wifiHost by viewModel.wifiHost.collectAsState()
+    val wifiName by viewModel.wifiName.collectAsState()
     val shortcutProfile by viewModel.shortcutProfile.collectAsState()
     val remoteShortcutProfileName by viewModel.remoteShortcutProfileName.collectAsState()
 
@@ -57,7 +58,9 @@ fun BlueTypeApp(viewModel: MainViewModel) {
                     pairedBluetoothDevices = pairedBluetoothDevices,
                     recentDevices = recentDevices,
                     wifiHost = wifiHost,
+                    wifiName = wifiName,
                     onWifiHostChange = viewModel::updateWifiHost,
+                    onWifiNameChange = viewModel::updateWifiName,
                     onConnectWifi = viewModel::connectWifi,
                     onConnectRecentDevice = viewModel::connectDevice,
                     onRemoveRecentDevice = viewModel::removeRecentDevice,

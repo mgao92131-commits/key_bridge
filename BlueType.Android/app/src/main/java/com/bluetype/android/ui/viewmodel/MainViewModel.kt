@@ -43,6 +43,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _wifiHost = MutableStateFlow("")
     val wifiHost: StateFlow<String> = _wifiHost.asStateFlow()
 
+    private val _wifiName = MutableStateFlow("")
+    val wifiName: StateFlow<String> = _wifiName.asStateFlow()
+
     private val _draftText = MutableStateFlow("")
     val draftText: StateFlow<String> = _draftText.asStateFlow()
 
@@ -94,6 +97,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _wifiHost.value = value
     }
 
+    fun updateWifiName(value: String) {
+        _wifiName.value = value
+    }
+
     fun updateDraft(value: String) {
         _draftText.value = value
         draftSaveJob?.cancel()
@@ -103,7 +110,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun connectWifi() {
-        android.util.Log.i("BlueTypeUI", "connectWifi clicked, host field value: '${_wifiHost.value}'")
+        android.util.Log.i("BlueTypeUI", "connectWifi clicked, host field value: '${_wifiHost.value}', name: '${_wifiName.value}'")
         val host = normalizeWifiHost(_wifiHost.value)
         if (host.isEmpty()) {
             android.util.Log.w("BlueTypeUI", "normalizeWifiHost returned empty string for '${_wifiHost.value}'")
@@ -111,9 +118,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
+        val existing = _recentDevices.value.firstOrNull {
+            it.type == DeviceType.WIFI && it.host == host
+        }
+        val displayName = _wifiName.value.trim().ifBlank {
+            existing?.name?.takeIf { it.isNotBlank() } ?: host
+        }
+        val computerId = existing?.id?.takeIf { it.isNotBlank() }
+            ?: java.util.UUID.randomUUID().toString()
+
         viewModelScope.launch {
-            android.util.Log.i("BlueTypeUI", "Initiating connection to host=$host port=24862")
-            connectionController.connect(ConnectionTarget.Wifi(host = host, port = 24862))
+            android.util.Log.i("BlueTypeUI", "Initiating connection to host=$host port=24862 name=$displayName id=$computerId")
+            connectionController.connect(
+                com.bluetype.android.bluetooth.ComputerConnectionProfile(
+                    computerId = computerId,
+                    displayName = displayName,
+                    target = ConnectionTarget.Wifi(host = host, port = 24862),
+                )
+            )
         }
     }
 
@@ -124,18 +146,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun connectDevice(device: StoredDevice) {
-        when (device.type) {
-            DeviceType.WIFI -> {
-                _wifiHost.value = device.host.orEmpty()
-                viewModelScope.launch {
-                    connectionController.connect(ConnectionTarget.Wifi(host = device.host.orEmpty(), port = device.port ?: 24862))
-                }
-            }
-            DeviceType.BLUETOOTH -> {
-                viewModelScope.launch {
-                    connectionController.connect(ConnectionTarget.Bluetooth(name = device.name, address = device.address.orEmpty()))
-                }
-            }
+        val target = when (device.type) {
+            DeviceType.WIFI -> ConnectionTarget.Wifi(host = device.host.orEmpty(), port = device.port ?: 24862)
+            DeviceType.BLUETOOTH -> ConnectionTarget.Bluetooth(name = device.name, address = device.address.orEmpty())
+        }
+        viewModelScope.launch {
+            connectionController.connect(
+                com.bluetype.android.bluetooth.ComputerConnectionProfile(
+                    computerId = device.id,
+                    displayName = device.name,
+                    target = target,
+                )
+            )
         }
     }
 
@@ -152,7 +174,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun connectBluetooth(device: ConnectionTarget.Bluetooth) {
         viewModelScope.launch {
-            connectionController.connect(device)
+            val existing = _recentDevices.value.firstOrNull {
+                it.type == DeviceType.BLUETOOTH && it.address == device.address
+            }
+            val profile = if (existing != null) {
+                com.bluetype.android.bluetooth.ComputerConnectionProfile(
+                    computerId = existing.id,
+                    displayName = existing.name,
+                    target = device,
+                )
+            } else {
+                com.bluetype.android.bluetooth.ComputerConnectionProfile(
+                    computerId = java.util.UUID.randomUUID().toString(),
+                    displayName = device.name,
+                    target = device,
+                )
+            }
+            connectionController.connect(profile)
         }
     }
 

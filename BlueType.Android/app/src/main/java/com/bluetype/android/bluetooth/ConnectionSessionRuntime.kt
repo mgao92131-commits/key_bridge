@@ -9,7 +9,6 @@ import com.bluetype.android.BuildConfig
 import com.bluetype.android.data.DeviceIdentityRepository
 import com.bluetype.android.data.PreferencesRepository
 import com.bluetype.android.data.TokenRepository
-import com.bluetype.android.data.toStoredDevice
 import com.bluetype.android.domain.CommandFeedback
 import com.bluetype.android.domain.CommandFeedbackState
 import com.bluetype.android.domain.ConnectionState
@@ -74,7 +73,7 @@ internal class ConnectionSessionRuntime(
     )
 
     private var activeConnection: ActiveConnection? = null
-    private var desiredTarget: ConnectionTarget? = null
+    private var desiredConnection: ComputerConnectionProfile? = null
     private var manualDisconnect = false
     private var lastBluetoothDisconnectAtMs = 0L
     private var hydratedSnapshot = false
@@ -88,12 +87,12 @@ internal class ConnectionSessionRuntime(
         }
     }
 
-    suspend fun connect(target: ConnectionTarget) {
+    suspend fun connect(profile: ComputerConnectionProfile) {
         sessionMutex.withLock {
             cancelReconnectJobLocked()
-            val error = connectInternal(target = target, reason = ConnectReason.Explicit, reconnectAttempt = 1)
+            val error = connectInternal(profile = profile, reason = ConnectReason.Explicit, reconnectAttempt = 1)
             if (error != null) {
-                setError(error, target = target)
+                setError(error, target = profile.target)
             }
         }
     }
@@ -131,24 +130,26 @@ internal class ConnectionSessionRuntime(
             }
 
             if (transientTarget != null) {
-                if (activeConnection != null && validateActiveConnectionLocked()) {
+                val profile = desiredConnection
+                if (profile != null && profile.target == transientTarget) {
+                    if (activeConnection != null && validateActiveConnectionLocked()) {
+                        return@withLock
+                    }
+
+                    Log.w(logTag, "recovering stale foreground state=$currentState profile=$profile")
+                    startReconnectLocked(profile, ReconnectSource.ForegroundRestore)
                     return@withLock
                 }
-
-                Log.w(logTag, "recovering stale foreground state=$currentState target=$transientTarget")
-                desiredTarget = transientTarget
-                startReconnectLocked(transientTarget, ReconnectSource.ForegroundRestore)
-                return@withLock
             }
 
-            val target = persistedSessionCoordinator.resolveRestoreTarget(
+            val profile = persistedSessionCoordinator.resolveRestoreProfile(
                 manualDisconnect = manualDisconnect,
                 hasActiveConnection = activeConnection != null,
                 hasReconnectJob = hasReconnectJobLocked(),
             ) ?: return
 
-            desiredTarget = target
-            startReconnectLocked(target, ReconnectSource.ForegroundRestore)
+            desiredConnection = profile
+            startReconnectLocked(profile, ReconnectSource.ForegroundRestore)
         }
     }
 
@@ -179,19 +180,19 @@ internal class ConnectionSessionRuntime(
     }
 
     private suspend fun connectInternal(
-        target: ConnectionTarget,
+        profile: ComputerConnectionProfile,
         reason: ConnectReason,
         reconnectAttempt: Int,
     ): String? {
-        Log.d(logTag, "connect target=$target reason=$reason")
+        Log.d(logTag, "connect profile=$profile reason=$reason")
         manualDisconnect = false
-        desiredTarget = target
+        desiredConnection = profile
         disconnectInternal(updateState = false, clearSession = false)
         ConnectionUiStateStore.setFeedback(null)
         applyTransition(
             SessionStateReducer.reduce(
                 SessionStateReducer.Event.ConnectRequested(
-                    target = target,
+                    target = profile.target,
                     restoreAttempt = reason.isRestoreAttempt,
                     attempt = reconnectAttempt,
                 ),
@@ -199,36 +200,36 @@ internal class ConnectionSessionRuntime(
         )
 
         try {
-            val transport = kotlinx.coroutines.withTimeout(connectTimeoutMs(target)) {
+            val transport = kotlinx.coroutines.withTimeout(connectTimeoutMs(profile.target)) {
                 connectionOrchestrator.openTransport(
-                    target = target,
+                    target = profile.target,
                     isReconnectAttempt = reason.isRestoreAttempt,
                     lastBluetoothDisconnectAtMs = lastBluetoothDisconnectAtMs,
                     preferredLanNetworkProvider = ::findPreferredLanNetwork,
                 )
             }
-            if (shouldAbortConnection(target)) {
-                Log.i(logTag, "connect aborted by manual disconnect target=$target")
+            if (shouldAbortConnection(profile)) {
+                Log.i(logTag, "connect aborted by manual disconnect profile=$profile")
                 runCatching { transport.close() }
                 return null
             }
             attachConnectedTransport(
-                target = target,
-                token = tokenRepository.currentToken(target),
+                profile = profile,
+                token = tokenRepository.getAndMigrateToken(profile.computerId, profile.target),
                 input = transport.input,
                 output = transport.output,
                 close = transport.close,
             )
-            Log.d(logTag, "connect attachConnectedTransport completed target=$target")
+            Log.d(logTag, "connect attachConnectedTransport completed profile=$profile")
             return null
         } catch (error: Exception) {
-            if (shouldAbortConnection(target)) {
-                Log.i(logTag, "connect failed after manual disconnect target=$target: ${error.message}")
+            if (shouldAbortConnection(profile)) {
+                Log.i(logTag, "connect failed after manual disconnect profile=$profile: ${error.message}")
                 return null
             }
             Log.e(logTag, "connect failed", error)
             disconnectInternal(updateState = false, clearSession = false)
-            return "Failed to connect to ${target.label}: ${error.message ?: "unknown error"}"
+            return "Failed to connect to ${profile.displayName}: ${error.message ?: "unknown error"}"
         }
     }
 
@@ -240,13 +241,13 @@ internal class ConnectionSessionRuntime(
     }
 
     private suspend fun attachConnectedTransport(
-        target: ConnectionTarget,
+        profile: ComputerConnectionProfile,
         token: String?,
         input: InputStream,
         output: OutputStream,
         close: () -> Unit,
     ) {
-        Log.d(logTag, "attachConnectedTransport start target=$target tokenPresent=${!token.isNullOrBlank()}")
+        Log.d(logTag, "attachConnectedTransport start profile=$profile tokenPresent=${!token.isNullOrBlank()}")
         val helloId = UUID.randomUUID().toString()
         var connectionRef: ActiveConnection? = null
         val session = SessionClient(
@@ -268,7 +269,9 @@ internal class ConnectionSessionRuntime(
             },
         )
         val connection = ActiveConnection(
-            target = target,
+            computerId = profile.computerId,
+            displayName = profile.displayName,
+            target = profile.target,
             helloId = helloId,
             session = session,
         )
@@ -309,7 +312,7 @@ internal class ConnectionSessionRuntime(
     }
 
     private suspend fun handleIncoming(connection: ActiveConnection, envelope: Envelope) {
-        if (shouldAbortConnection(connection.target)) {
+        if (shouldAbortConnection(connection)) {
             return
         }
 
@@ -323,15 +326,15 @@ internal class ConnectionSessionRuntime(
                 if (result.token != null) {
                     connection.token = result.token
                     if (result.persistToken) {
-                        tokenRepository.saveToken(connection.target, result.token)
+                        tokenRepository.saveToken(connection.computerId, result.token)
                     }
                 }
-                markConnected(connection.target)
+                markConnected(connection)
             }
 
             MsgType.ACK -> {
                 if (envelope.id == connection.helloId) {
-                    markConnected(connection.target)
+                    markConnected(connection)
                 } else {
                     val request = connection.pendingRequests.remove(envelope.id)
                     request?.ackCompletion?.complete(true)
@@ -399,13 +402,14 @@ internal class ConnectionSessionRuntime(
         if (requestId == connection.helloId) {
             val action = AuthResponseHandler.helloError(payload)
             if (action.clearToken) {
-                tokenRepository.clearToken(connection.target)
+                tokenRepository.clearToken(connection.computerId)
+                tokenRepository.clearOldGlobalToken()
             }
             if (action.clearPersistedSession) {
                 preferencesRepository.clearPersistedSession()
             }
             if (action.clearDesiredTarget) {
-                desiredTarget = null
+                desiredConnection = null
             }
             disconnectInternal(updateState = false, clearSession = false)
             setError(action.message, target = connection.target)
@@ -414,9 +418,10 @@ internal class ConnectionSessionRuntime(
 
         val authAction = AuthResponseHandler.commandAuthorizationError(payload)
         if (authAction != null) {
-            tokenRepository.clearToken(connection.target)
+            tokenRepository.clearToken(connection.computerId)
+            tokenRepository.clearOldGlobalToken()
             preferencesRepository.clearPersistedSession()
-            desiredTarget = null
+            desiredConnection = null
             disconnectInternal(updateState = false, clearSession = false)
             setError(message = authAction.message, target = connection.target)
             return
@@ -452,16 +457,25 @@ internal class ConnectionSessionRuntime(
         )
     }
 
-    private fun markConnected(target: ConnectionTarget) {
-        if (shouldAbortConnection(target)) {
+    private fun markConnected(connection: ActiveConnection) {
+        if (shouldAbortConnection(connection)) {
             return
         }
 
         reconnectJob = null
-        applyTransition(SessionStateReducer.reduce(SessionStateReducer.Event.AuthSucceeded(target)))
+        applyTransition(SessionStateReducer.reduce(SessionStateReducer.Event.AuthSucceeded(connection.target)))
         runtimeScope.launch {
-            preferencesRepository.saveRecentDevice(target.toStoredDevice())
-            persistedSessionCoordinator.persistSession(target = target)
+            val device = com.bluetype.android.data.StoredDevice(
+                id = connection.computerId,
+                name = connection.displayName,
+                type = if (connection.target is ConnectionTarget.Wifi) com.bluetype.android.data.DeviceType.WIFI else com.bluetype.android.data.DeviceType.BLUETOOTH,
+                host = (connection.target as? ConnectionTarget.Wifi)?.host,
+                port = (connection.target as? ConnectionTarget.Wifi)?.port,
+                address = (connection.target as? ConnectionTarget.Bluetooth)?.address,
+                lastConnectedAt = System.currentTimeMillis()
+            )
+            preferencesRepository.saveRecentDevice(device)
+            persistedSessionCoordinator.persistSession(device = device)
         }
     }
 
@@ -520,14 +534,18 @@ internal class ConnectionSessionRuntime(
 
     private fun requestManualDisconnect() {
         manualDisconnect = true
-        desiredTarget = null
+        desiredConnection = null
         reconnectJob?.cancel()
         reconnectJob = null
         ConnectionUiStateStore.clearForManualDisconnect()
     }
 
-    private fun shouldAbortConnection(target: ConnectionTarget): Boolean {
-        return manualDisconnect || desiredTarget != target || !runtimeScope.coroutineContext.isActive
+    private fun shouldAbortConnection(profile: ComputerConnectionProfile): Boolean {
+        return manualDisconnect || desiredConnection?.computerId != profile.computerId || !runtimeScope.coroutineContext.isActive
+    }
+
+    private fun shouldAbortConnection(connection: ActiveConnection): Boolean {
+        return manualDisconnect || desiredConnection?.computerId != connection.computerId || !runtimeScope.coroutineContext.isActive
     }
 
     private fun handleUnexpectedDisconnect(connection: ActiveConnection, message: String) {
@@ -543,9 +561,14 @@ internal class ConnectionSessionRuntime(
 
                 disconnectInternal(updateState = false, clearSession = false)
                 if (!manualDisconnect) {
-                    Log.w(logTag, "unexpected disconnect; starting state recovery target=${connection.target}: $message")
-                    desiredTarget = connection.target
-                    startReconnectLocked(connection.target, ReconnectSource.StateRecovery)
+                    Log.w(logTag, "unexpected disconnect; starting state recovery connection=$connection: $message")
+                    val profile = ComputerConnectionProfile(
+                        computerId = connection.computerId,
+                        displayName = connection.displayName,
+                        target = connection.target,
+                    )
+                    desiredConnection = profile
+                    startReconnectLocked(profile, ReconnectSource.StateRecovery)
                 }
             }
         }
@@ -609,7 +632,12 @@ internal class ConnectionSessionRuntime(
 
         hydratedSnapshot = true
         val snapshot = persistedSessionCoordinator.hydrateSnapshot() ?: return
-        desiredTarget = snapshot.target
+        val profile = ComputerConnectionProfile(
+            computerId = snapshot.computer.id,
+            displayName = snapshot.computer.name,
+            target = snapshot.target,
+        )
+        desiredConnection = profile
         ConnectionUiStateStore.setSessionTarget(snapshot.target)
         ConnectionUiStateStore.setUiRoute(snapshot.uiRoute)
         snapshot.lastError?.let {
@@ -618,14 +646,14 @@ internal class ConnectionSessionRuntime(
         }
     }
 
-    private fun startReconnectLocked(target: ConnectionTarget, source: ReconnectSource) {
+    private fun startReconnectLocked(profile: ComputerConnectionProfile, source: ReconnectSource) {
         cancelReconnectJobLocked()
         reconnectJob = runtimeScope.launch {
             // Give 0.5s for OS to clean up socket resources
             delay(500)
 
             val result = sessionMutex.withLock {
-                if (shouldAbortReconnectLocked(target)) {
+                if (shouldAbortReconnectLocked(profile)) {
                     reconnectJob = null
                     return@launch
                 }
@@ -638,10 +666,12 @@ internal class ConnectionSessionRuntime(
                 }
 
                 applyTransition(
-                    SessionStateReducer.reduce(SessionStateReducer.Event.ReconnectStarted(target, 1)),
+                    SessionStateReducer.reduce(
+                        SessionStateReducer.Event.ReconnectStarted(profile.target, 1),
+                    ),
                 )
 
-                connectInternal(target = target, reason = source.connectReason, reconnectAttempt = 1)
+                connectInternal(profile = profile, reason = source.connectReason, reconnectAttempt = 1)
             }
 
             if (result == null) {
@@ -650,13 +680,13 @@ internal class ConnectionSessionRuntime(
             }
 
             val fallbackResult = sessionMutex.withLock {
-                if (shouldAbortReconnectLocked(target) || activeConnection != null) {
+                if (shouldAbortReconnectLocked(profile) || activeConnection != null) {
                     reconnectJob = null
                     return@launch
                 }
 
-                Log.i(logTag, "${source.logName} restore failed; retrying as explicit connect target=$target")
-                connectInternal(target = target, reason = ConnectReason.Explicit, reconnectAttempt = 1)
+                Log.i(logTag, "${source.logName} restore failed; retrying as explicit connect profile=$profile")
+                connectInternal(profile = profile, reason = ConnectReason.Explicit, reconnectAttempt = 1)
             }
 
             if (fallbackResult == null) {
@@ -665,8 +695,8 @@ internal class ConnectionSessionRuntime(
             }
 
             sessionMutex.withLock {
-                if (!shouldAbortReconnectLocked(target) && activeConnection == null) {
-                    setError(fallbackResult, target = target)
+                if (!shouldAbortReconnectLocked(profile) && activeConnection == null) {
+                    setError(fallbackResult, target = profile.target)
                 }
                 reconnectJob = null
             }
@@ -682,8 +712,8 @@ internal class ConnectionSessionRuntime(
         reconnectJob = null
     }
 
-    private fun shouldAbortReconnectLocked(target: ConnectionTarget): Boolean {
-        return manualDisconnect || desiredTarget != target || !runtimeScope.coroutineContext.isActive
+    private fun shouldAbortReconnectLocked(profile: ComputerConnectionProfile): Boolean {
+        return manualDisconnect || desiredConnection?.computerId != profile.computerId || !runtimeScope.coroutineContext.isActive
     }
 
     private companion object {

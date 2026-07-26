@@ -95,6 +95,8 @@ class ConnectionCommandDispatcherTest {
             onDisconnected = { },
         )
         val connection = ActiveConnection(
+            computerId = "test-comp-id",
+            displayName = "test-comp-name",
             target = target,
             helloId = "hello",
             session = client,

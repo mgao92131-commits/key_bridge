@@ -14,21 +14,27 @@ data class PersistedSession(
     val updatedAt: Long = System.currentTimeMillis(),
 )
 
-fun ConnectionTarget.toStoredDevice(): StoredDevice {
-    return when (this) {
+fun ConnectionTarget.toStoredDevice(
+    id: String = "",
+    name: String = "",
+): StoredDevice {
+    val device = when (this) {
         is ConnectionTarget.Wifi -> StoredDevice(
-            name = host,
+            id = id,
+            name = name.ifBlank { host },
             type = DeviceType.WIFI,
             host = host,
             port = port,
         )
 
         is ConnectionTarget.Bluetooth -> StoredDevice(
-            name = name,
+            id = id,
+            name = name.ifBlank { this.name },
             type = DeviceType.BLUETOOTH,
             address = address,
         )
     }
+    return device.withStableId()
 }
 
 fun StoredDevice.toConnectionTarget(): ConnectionTarget? {

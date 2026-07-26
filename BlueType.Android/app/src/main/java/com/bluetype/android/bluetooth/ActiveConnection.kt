@@ -5,6 +5,8 @@ import kotlinx.coroutines.CompletableDeferred
 import java.util.concurrent.ConcurrentHashMap
 
 internal data class ActiveConnection(
+    val computerId: String,
+    val displayName: String,
     val target: ConnectionTarget,
     val helloId: String,
     val session: SessionClient,

@@ -45,8 +45,8 @@ class ConnectionController private constructor(
         preferencesRepository.removeRecentDevice(device)
     }
 
-    suspend fun connect(target: ConnectionTarget) {
-        sessionRuntime.connect(target)
+    suspend fun connect(profile: ComputerConnectionProfile) {
+        sessionRuntime.connect(profile)
     }
 
     suspend fun disconnect() {

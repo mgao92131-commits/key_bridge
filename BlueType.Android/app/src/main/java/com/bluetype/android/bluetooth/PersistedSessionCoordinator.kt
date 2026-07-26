@@ -4,11 +4,12 @@ import com.bluetype.android.data.PersistedSession
 import com.bluetype.android.data.PersistedSessionRepository
 import com.bluetype.android.data.PreferencesRepository
 import com.bluetype.android.data.toConnectionTarget
-import com.bluetype.android.data.toStoredDevice
+import com.bluetype.android.data.StoredDevice
 import com.bluetype.android.domain.ConnectionTarget
 import com.bluetype.android.domain.UiRoute
 
 internal data class PersistedSessionSnapshot(
+    val computer: StoredDevice,
     val target: ConnectionTarget,
     val uiRoute: UiRoute,
     val lastError: String?,
@@ -35,17 +36,18 @@ internal class PersistedSessionCoordinator(
         val persisted = currentPersistedSession() ?: return null
         val target = persisted.target.toConnectionTarget() ?: return null
         return PersistedSessionSnapshot(
+            computer = persisted.target,
             target = target,
             uiRoute = persisted.uiRoute,
             lastError = persisted.lastError,
         )
     }
 
-    suspend fun resolveRestoreTarget(
+    suspend fun resolveRestoreProfile(
         manualDisconnect: Boolean,
         hasActiveConnection: Boolean,
         hasReconnectJob: Boolean,
-    ): ConnectionTarget? {
+    ): ComputerConnectionProfile? {
         if (manualDisconnect || hasActiveConnection || hasReconnectJob) {
             return null
         }
@@ -55,21 +57,27 @@ internal class PersistedSessionCoordinator(
             return null
         }
 
-        return persisted.target.toConnectionTarget() ?: run {
+        val target = persisted.target.toConnectionTarget() ?: run {
             clearPersistedSession()
             null
-        }
+        } ?: return null
+
+        return ComputerConnectionProfile(
+            computerId = persisted.target.id,
+            displayName = persisted.target.name,
+            target = target,
+        )
     }
 
     suspend fun persistSession(
-        target: ConnectionTarget,
+        device: StoredDevice,
         lastError: String? = null,
         autoRestore: Boolean = true,
         manuallyDisconnected: Boolean = false,
     ) {
         savePersistedSession(
             PersistedSession(
-                target = target.toStoredDevice(),
+                target = device,
                 uiRoute = UiRoute.REMOTE_SESSION,
                 autoRestore = autoRestore,
                 manuallyDisconnected = manuallyDisconnected,

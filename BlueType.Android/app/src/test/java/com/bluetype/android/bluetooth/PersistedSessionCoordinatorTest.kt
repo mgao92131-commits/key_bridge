@@ -17,7 +17,7 @@ class PersistedSessionCoordinatorTest {
     @Test
     fun hydrateSnapshot_returnsMappedTargetAndMetadata() = runTest {
         val persisted = PersistedSession(
-            target = StoredDevice(name = "Host", type = DeviceType.WIFI, host = "192.168.0.10", port = 24862),
+            target = StoredDevice(id = "computer-id-1", name = "Host", type = DeviceType.WIFI, host = "192.168.0.10", port = 24862),
             uiRoute = UiRoute.REMOTE_SESSION,
             lastError = "oops",
         )
@@ -27,6 +27,7 @@ class PersistedSessionCoordinatorTest {
         val snapshot = coordinator.hydrateSnapshot()
 
         assertNotNull(snapshot)
+        assertEquals("computer-id-1", snapshot?.computer?.id)
         assertEquals(ConnectionTarget.Wifi("192.168.0.10", 24862), snapshot?.target)
         assertEquals(UiRoute.REMOTE_SESSION, snapshot?.uiRoute)
         assertEquals("oops", snapshot?.lastError)
@@ -40,7 +41,7 @@ class PersistedSessionCoordinatorTest {
         val store = FakePersistedSessionStore(current = persisted)
         val coordinator = store.createCoordinator()
 
-        val result = coordinator.resolveRestoreTarget(
+        val result = coordinator.resolveRestoreProfile(
             manualDisconnect = false,
             hasActiveConnection = false,
             hasReconnectJob = false,
@@ -55,14 +56,16 @@ class PersistedSessionCoordinatorTest {
         val store = FakePersistedSessionStore()
         val coordinator = store.createCoordinator()
 
+        val device = StoredDevice(id = "id-pixel", name = "Pixel", type = DeviceType.BLUETOOTH, address = "AA:BB:CC")
         coordinator.persistSession(
-            target = ConnectionTarget.Bluetooth(name = "Pixel", address = "AA:BB:CC"),
+            device = device,
             lastError = "failed",
             autoRestore = false,
             manuallyDisconnected = true,
         )
 
         val saved = store.saved.single()
+        assertEquals("id-pixel", saved.target.id)
         assertEquals("Pixel", saved.target.name)
         assertEquals(DeviceType.BLUETOOTH, saved.target.type)
         assertEquals("AA:BB:CC", saved.target.address)
