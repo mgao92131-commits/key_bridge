@@ -34,8 +34,6 @@ fun BlueTypeApp(viewModel: MainViewModel) {
                 UiRoute.REMOTE_SESSION -> RemoteScreen(
                     state = state,
                     sessionTarget = sessionTarget,
-                    statusMessage = statusMessage,
-                    isInputEnabled = state is ConnectionState.Connected,
                     draftText = draftText,
                     onDraftChange = viewModel::updateDraft,
                     onSendText = viewModel::sendText,

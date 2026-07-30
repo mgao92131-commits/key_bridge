@@ -45,6 +45,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -68,8 +70,6 @@ import kotlin.math.sqrt
 fun RemoteScreen(
     state: ConnectionState,
     sessionTarget: ConnectionTarget?,
-    statusMessage: String?,
-    isInputEnabled: Boolean,
     draftText: String,
     onDraftChange: (String) -> Unit,
     onSendText: () -> Unit,
@@ -112,129 +112,23 @@ fun RemoteScreen(
             onMouseClick = onMouseClick,
             onMouseScroll = onMouseScroll,
             onDisconnect = onDisconnect,
+            onCancelConnection = onCancelConnection,
+            onRetryConnection = onRetryConnection,
+            onBackToDeviceList = onBackToDeviceList,
             profile = profile,
             profileTitle = profileTitle,
         )
-
-        ConnectionStatusOverlay(
-            state = state,
-            statusMessage = statusMessage,
-            onCancel = onCancelConnection,
-            onRetry = onRetryConnection,
-            onBackToDeviceList = onBackToDeviceList,
-        )
     }
 }
 
 @Composable
-private fun ConnectionStatusOverlay(
+private fun StatusDot(
     state: ConnectionState,
-    statusMessage: String?,
-    onCancel: () -> Unit,
-    onRetry: () -> Unit,
-    onBackToDeviceList: () -> Unit,
+    onCancelConnection: () -> Unit,
+    onRetryConnection: () -> Unit,
 ) {
-    val overlayVisible = state is ConnectionState.Connecting ||
-        state is ConnectionState.AwaitingApproval ||
-        state is ConnectionState.Reconnecting ||
-        state is ConnectionState.Error
-    if (!overlayVisible) {
-        return
-    }
-
-    val title = when (state) {
-        is ConnectionState.Connecting -> "Connecting to ${state.displayName}"
-        is ConnectionState.AwaitingApproval -> "Waiting for computer approval"
-        is ConnectionState.Reconnecting -> "Reconnecting to ${state.displayName}"
-        is ConnectionState.Error -> "Connection failed"
-        else -> "Connecting"
-    }
-    val detail = when (state) {
-        is ConnectionState.AwaitingApproval ->
-            "Please confirm this device on the computer.\nRemaining: ${state.timeoutSec}s"
-        is ConnectionState.Reconnecting ->
-            statusMessage ?: "Attempt ${state.attempt}"
-        is ConnectionState.Error -> state.message
-        else -> statusMessage ?: ""
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.45f))
-            .clickable(enabled = false, onClick = {}),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(
-            modifier = Modifier
-                .padding(32.dp)
-                .clip(RoundedCornerShape(20.dp))
-                .background(MaterialTheme.colorScheme.surface)
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            if (state !is ConnectionState.Error) {
-                androidx.compose.material3.CircularProgressIndicator(strokeWidth = 3.dp)
-            }
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            if (detail.isNotBlank()) {
-                Text(
-                    text = detail,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                )
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                when (state) {
-                    is ConnectionState.Error -> {
-                        Text(
-                            text = "Retry",
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
-                                .clickable(onClick = onRetry)
-                                .padding(horizontal = 16.dp, vertical = 10.dp),
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        Text(
-                            text = "Device list",
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
-                                .clickable(onClick = onBackToDeviceList)
-                                .padding(horizontal = 16.dp, vertical = 10.dp),
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
-                    else -> {
-                        Text(
-                            text = "Cancel",
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
-                                .clickable(onClick = onCancel)
-                                .padding(horizontal = 16.dp, vertical = 10.dp),
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun StatusDot(state: ConnectionState) {
     val infiniteTransition = rememberInfiniteTransition(label = "dot_blink")
-    val alpha by infiniteTransition.animateFloat(
+    val blinkAlpha by infiniteTransition.animateFloat(
         initialValue = 0.3f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
@@ -243,26 +137,79 @@ private fun StatusDot(state: ConnectionState) {
         ),
         label = "dot_alpha"
     )
+    val errorPulse by infiniteTransition.animateFloat(
+        initialValue = 0.7f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "dot_error_pulse"
+    )
 
-    val isConnecting = state is ConnectionState.Connecting ||
-            state is ConnectionState.Reconnecting ||
-            state is ConnectionState.AwaitingApproval
+    val isInProgress = state is ConnectionState.Connecting ||
+        state is ConnectionState.Reconnecting ||
+        state is ConnectionState.AwaitingApproval
 
+    val amber = Color(0xFFFFB300)
     val color = when (state) {
         is ConnectionState.Connected -> Color(0xFF4CAF50)
-        is ConnectionState.Error -> MaterialTheme.colorScheme.error
+        is ConnectionState.Error -> Color(0xFFE53935)
         is ConnectionState.Idle -> MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
-        else -> MaterialTheme.colorScheme.primary
+        else -> amber
+    }
+    val dotAlpha = when {
+        isInProgress -> blinkAlpha
+        state is ConnectionState.Error -> errorPulse
+        else -> 1f
+    }
+    val description = when (state) {
+        is ConnectionState.Connecting,
+        is ConnectionState.Reconnecting,
+        is ConnectionState.AwaitingApproval -> "Cancel connection"
+        is ConnectionState.Error -> "Retry connection"
+        is ConnectionState.Connected -> "Connected"
+        else -> "Connection status"
+    }
+    val onClick: (() -> Unit)? = when (state) {
+        is ConnectionState.Connecting,
+        is ConnectionState.Reconnecting,
+        is ConnectionState.AwaitingApproval -> onCancelConnection
+        is ConnectionState.Error -> onRetryConnection
+        else -> null
     }
 
     Box(
         modifier = Modifier
-            .size(8.dp)
-            .clip(CircleShape)
-            .background(color.copy(alpha = if (isConnecting) alpha else 1f))
-            .shadow(if (state is ConnectionState.Connected) 4.dp else 0.dp, CircleShape)
-    )
+            .fillMaxSize()
+            .semantics { contentDescription = description }
+            .then(
+                if (onClick != null) {
+                    Modifier.clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onClick,
+                    )
+                } else {
+                    Modifier
+                }
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .clip(CircleShape)
+                .background(color.copy(alpha = dotAlpha))
+                .shadow(if (state is ConnectionState.Connected) 4.dp else 0.dp, CircleShape)
+        )
+    }
 }
+
+private fun isConnectionInProgress(state: ConnectionState): Boolean =
+    state is ConnectionState.Connecting ||
+        state is ConnectionState.Reconnecting ||
+        state is ConnectionState.AwaitingApproval
 
 @Composable
 private fun MainWorkspace(
@@ -281,6 +228,9 @@ private fun MainWorkspace(
     onMouseClick: (String, Int) -> Unit,
     onMouseScroll: (Int) -> Unit,
     onDisconnect: () -> Unit,
+    onCancelConnection: () -> Unit,
+    onRetryConnection: () -> Unit,
+    onBackToDeviceList: () -> Unit,
     profile: ShortcutProfile,
     profileTitle: String?,
 ) {
@@ -421,14 +371,25 @@ private fun MainWorkspace(
 
                     // 2. Fixed-Width Status Dot
                     Box(
-                        modifier = Modifier.width(32.dp),
+                        modifier = Modifier.size(32.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        StatusDot(state = state)
+                        StatusDot(
+                            state = state,
+                            onCancelConnection = onCancelConnection,
+                            onRetryConnection = onRetryConnection,
+                        )
                     }
 
                     IconButton(
-                        onClick = onDisconnect,
+                        onClick = {
+                            when {
+                                state is ConnectionState.Connected -> onDisconnect()
+                                isConnectionInProgress(state) -> onCancelConnection()
+                                state is ConnectionState.Error -> onBackToDeviceList()
+                                else -> onDisconnect()
+                            }
+                        },
                         modifier = Modifier.size(32.dp),
                     ) {
                         Text(
@@ -441,6 +402,14 @@ private fun MainWorkspace(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                    ) {
                 TriRailCommandCenter(
                     value = editorValue,
                     onValueChange = { newValue ->
@@ -576,6 +545,8 @@ private fun MainWorkspace(
                 }
 
                 Spacer(modifier = Modifier.height(4.dp))
+                    }
+                }
             }
 
             Box(
