@@ -10,6 +10,9 @@ on:
       - "BlueType.sln"
       - ".github/workflows/build-windows-agent.yml"
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
@@ -23,7 +26,22 @@ jobs:
       - name: Publish Windows agent
         run: dotnet publish BlueType.Agent/BlueType.Agent.csproj -c Release -o artifacts/windows-agent
 
+      - name: Zip published agent
+        shell: pwsh
+        run: |
+          Compress-Archive -Path artifacts/windows-agent/* -DestinationPath artifacts/BlueType.Agent-windows.zip -Force
+
       - uses: actions/upload-artifact@v4
         with:
           name: BlueType.Agent-windows
           path: artifacts/windows-agent
+
+      - name: Publish downloadable release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: windows-agent-latest
+          name: Windows Agent (latest)
+          body: Automated Windows agent build from `${{ github.sha }}`.
+          files: artifacts/BlueType.Agent-windows.zip
+          make_latest: true
+          fail_on_unmatched_files: true
