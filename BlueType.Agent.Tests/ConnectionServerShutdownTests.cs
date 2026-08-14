@@ -93,12 +93,13 @@ public sealed class ConnectionServerShutdownTests
         var server = new FakeConnectionServer(harness.Processor, acceptMode: AcceptMode.ThreeHangingClients);
         server.Start();
 
-        Assert.True(await server.WaitForSessionCountAsync(3, TimeSpan.FromSeconds(2)));
+        Assert.True(await server.WaitForActiveClientCountAsync(3, TimeSpan.FromSeconds(2)));
 
         await server.StopAsync();
 
         Assert.Equal(0, server.TrackedSessionCount);
-        Assert.True(server.ClosedClientCount >= 1);
+        Assert.Equal(0, server.ActiveClientCount);
+        Assert.Equal(3, server.ClosedClientCount);
     }
 
     [Fact]
@@ -210,6 +211,22 @@ public sealed class ConnectionServerShutdownTests
             return false;
         }
 
+        public async Task<bool> WaitForActiveClientCountAsync(int count, TimeSpan timeout)
+        {
+            var startedAt = Environment.TickCount64;
+            while (Environment.TickCount64 - startedAt < timeout.TotalMilliseconds)
+            {
+                if (ActiveClientCount >= count)
+                {
+                    return true;
+                }
+
+                await Task.Delay(20);
+            }
+
+            return false;
+        }
+
         protected override async Task<FakeClient> AcceptClientAsync(CancellationToken cancellationToken)
         {
             switch (_acceptMode)
@@ -256,8 +273,10 @@ public sealed class ConnectionServerShutdownTests
                 return;
             }
 
-            client.Close();
-            Interlocked.Increment(ref _closedClients);
+            if (client.TryClose())
+            {
+                Interlocked.Increment(ref _closedClients);
+            }
         }
 
         protected override void DisposeClient(FakeClient client)
@@ -300,14 +319,20 @@ public sealed class ConnectionServerShutdownTests
 
         public Stream Stream { get; }
 
-        public void Close()
+        public bool TryClose()
         {
             if (Interlocked.Exchange(ref _closed, 1) != 0)
             {
-                return;
+                return false;
             }
 
             Stream.Dispose();
+            return true;
+        }
+
+        public void Close()
+        {
+            TryClose();
         }
 
         public void Dispose()

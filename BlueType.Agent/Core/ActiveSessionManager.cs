@@ -21,6 +21,41 @@ internal sealed class ActiveSessionManager
         }
     }
 
+    /// <summary>
+    /// Disconnects the protocol-controlling session (the device currently driving input).
+    /// Returns false when no authorized controlling session exists.
+    /// </summary>
+    public bool TryDisconnectActive()
+    {
+        Action? disconnect;
+
+        _gate.Wait();
+        try
+        {
+            if (_activeSession is null)
+            {
+                return false;
+            }
+
+            disconnect = _activeSession.Disconnect;
+        }
+        finally
+        {
+            _gate.Release();
+        }
+
+        try
+        {
+            disconnect();
+        }
+        catch
+        {
+            // Best effort only.
+        }
+
+        return true;
+    }
+
     public async Task<SessionActivationResult> ActivateAsync(
         ActiveSessionCandidate candidate,
         Func<SessionTakeoverRequest, CancellationToken, Task<bool>> confirmTakeoverAsync,

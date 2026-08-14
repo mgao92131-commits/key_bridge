@@ -3,7 +3,6 @@ using BlueType.Agent.Bluetooth;
 using BlueType.Agent.Core;
 using BlueType.Agent.Models;
 using BlueType.Agent.Network;
-using BlueType.Agent.Native;
 
 namespace BlueType.Agent.Host;
 
@@ -12,6 +11,7 @@ internal sealed class AgentApplicationHost : IDisposable
     private readonly InputInjector _inputInjector;
     private readonly ClipboardService _clipboardService;
     private readonly ShortcutProfileDispatcher _shortcutProfiles;
+    private readonly ActiveSessionManager _activeSessionManager;
     private readonly TcpServer _tcpServer;
     private readonly BluetoothServer _bluetoothServer;
     private readonly object _stopLock = new();
@@ -27,8 +27,8 @@ internal sealed class AgentApplicationHost : IDisposable
         var deviceRegistry = new DeviceRegistry();
         var commandRouter = new CommandRouter(_inputInjector, _clipboardService);
         var authService = new AuthService(deviceRegistry, promptForAuthorizationAsync);
-        var activeSessionManager = new ActiveSessionManager();
-        var sessionProcessor = new SessionProcessor(commandRouter, authService, _inputInjector, activeSessionManager, _shortcutProfiles, promptForAuthorizationAsync);
+        _activeSessionManager = new ActiveSessionManager();
+        var sessionProcessor = new SessionProcessor(commandRouter, authService, _inputInjector, _activeSessionManager, _shortcutProfiles, promptForAuthorizationAsync);
 
         _tcpServer = new TcpServer(sessionProcessor);
         _bluetoothServer = new BluetoothServer(sessionProcessor);
@@ -51,7 +51,17 @@ internal sealed class AgentApplicationHost : IDisposable
 
     public bool DisconnectActiveClient()
     {
-        var disconnected = _tcpServer.DisconnectActiveClient() | _bluetoothServer.DisconnectActiveClient();
+        // Prefer the protocol-controlling session (authorized device driving input).
+        if (_activeSessionManager.TryDisconnectActive())
+        {
+            ConnectionStateChanged?.Invoke(ConnectionState.Disconnecting);
+            ServerMessage?.Invoke("Disconnecting active client...");
+            return true;
+        }
+
+        // Fallback for pre-auth connections (Connected/Authenticating/PendingApproval UI)
+        // when no controlling session has been activated yet.
+        var disconnected = _tcpServer.DisconnectLatestClient() | _bluetoothServer.DisconnectLatestClient();
         if (!disconnected)
         {
             return false;

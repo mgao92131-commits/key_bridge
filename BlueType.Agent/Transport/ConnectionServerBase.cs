@@ -9,16 +9,15 @@ internal abstract class ConnectionServerBase<TClient> : IDisposable
 {
     private readonly SessionProcessor _sessionProcessor;
     private readonly CancellationTokenSource _shutdown = new();
-    private readonly object _activeClientLock = new();
+    private readonly object _clientsLock = new();
+    private readonly Dictionary<Guid, ActiveClientContext> _activeClients = [];
     private readonly object _sessionTasksLock = new();
     private readonly HashSet<Task> _sessionTasks = [];
     private readonly object _stopLock = new();
 
     private Task? _listenTask;
     private Task? _stopTask;
-    private TClient? _activeClient;
-    private CancellationTokenSource? _activeClientLifetime;
-    private string? _activeRemoteAddress;
+    private Guid? _latestSessionId;
     private int _stopRequested;
     private int _disposed;
 
@@ -52,6 +51,17 @@ internal abstract class ConnectionServerBase<TClient> : IDisposable
             lock (_sessionTasksLock)
             {
                 return _sessionTasks.Count;
+            }
+        }
+    }
+
+    internal int ActiveClientCount
+    {
+        get
+        {
+            lock (_clientsLock)
+            {
+                return _activeClients.Count;
             }
         }
     }
@@ -120,26 +130,41 @@ internal abstract class ConnectionServerBase<TClient> : IDisposable
         }
     }
 
-    public bool DisconnectActiveClient()
+    /// <summary>
+    /// Disconnects the latest transport-level connection on this server.
+    /// Used as a fallback when no protocol-controlling session exists yet
+    /// (for example during PendingApproval). Prefer Host-level disconnect of the
+    /// ActiveSessionManager controlling session for "Disconnect Current Client".
+    /// </summary>
+    public bool DisconnectLatestClient()
     {
-        TClient? client;
-        CancellationTokenSource? lifetime;
-        string? remoteAddress;
+        ActiveClientContext? target;
 
-        lock (_activeClientLock)
+        lock (_clientsLock)
         {
-            client = _activeClient;
-            lifetime = _activeClientLifetime;
-            remoteAddress = _activeRemoteAddress;
+            if (_latestSessionId is Guid latestId &&
+                _activeClients.TryGetValue(latestId, out var latest))
+            {
+                target = latest;
+            }
+            else if (_activeClients.Count > 0)
+            {
+                target = _activeClients.Values.Last();
+            }
+            else
+            {
+                target = null;
+            }
         }
 
-        if (client is null && lifetime is null)
+        if (target is null)
         {
             return false;
         }
 
-        CancelAndCloseClient(client, lifetime);
-        AppLogger.Info($"Manual disconnect requested for {TransportDisplayName} client {remoteAddress ?? "unknown"}.");
+        CancelAndCloseClient(target.Client, target.Lifetime);
+        AppLogger.Info(
+            $"Manual disconnect requested for {TransportDisplayName} client {target.RemoteAddress ?? "unknown"} (session {target.SessionId}).");
         return true;
     }
 
@@ -153,7 +178,8 @@ internal abstract class ConnectionServerBase<TClient> : IDisposable
         var startedAt = Stopwatch.StartNew();
         AppLogger.Info($"Stopping {TransportDisplayName} server.");
 
-        DisconnectActiveClient();
+        var closedCount = DisconnectAllClients();
+        AppLogger.Info($"{TransportDisplayName} closed {closedCount} active client(s) during shutdown.");
 
         try
         {
@@ -228,6 +254,22 @@ internal abstract class ConnectionServerBase<TClient> : IDisposable
         AppLogger.Info($"{TransportDisplayName} server stopped in {startedAt.ElapsedMilliseconds} ms.");
     }
 
+    private int DisconnectAllClients()
+    {
+        ActiveClientContext[] clients;
+        lock (_clientsLock)
+        {
+            clients = _activeClients.Values.ToArray();
+        }
+
+        foreach (var context in clients)
+        {
+            CancelAndCloseClient(context.Client, context.Lifetime);
+        }
+
+        return clients.Length;
+    }
+
     private async Task RunAcceptLoopAsync()
     {
         while (!_shutdown.IsCancellationRequested)
@@ -300,7 +342,7 @@ internal abstract class ConnectionServerBase<TClient> : IDisposable
         var remoteAddress = GetRemoteAddress(client);
         var sessionId = Guid.NewGuid();
         using var sessionLifetime = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        RegisterActiveClient(client, sessionLifetime, remoteAddress);
+        RegisterActiveClient(sessionId, client, sessionLifetime, remoteAddress);
         void DisconnectCurrentSession()
         {
             CancelAndCloseClient(client, sessionLifetime);
@@ -329,7 +371,7 @@ internal abstract class ConnectionServerBase<TClient> : IDisposable
         }
         finally
         {
-            ClearActiveClient(client);
+            ClearActiveClient(sessionId);
             try
             {
                 DisposeClient(client);
@@ -344,34 +386,31 @@ internal abstract class ConnectionServerBase<TClient> : IDisposable
         }
     }
 
-    private void RegisterActiveClient(TClient client, CancellationTokenSource lifetime, string? remoteAddress)
+    private void RegisterActiveClient(
+        Guid sessionId,
+        TClient client,
+        CancellationTokenSource lifetime,
+        string? remoteAddress)
     {
-        lock (_activeClientLock)
+        lock (_clientsLock)
         {
-            _activeClient = client;
-            _activeClientLifetime = lifetime;
-            _activeRemoteAddress = remoteAddress;
+            _activeClients[sessionId] = new ActiveClientContext(sessionId, client, lifetime, remoteAddress);
+            _latestSessionId = sessionId;
         }
     }
 
-    private void ClearActiveClient(TClient client)
+    private void ClearActiveClient(Guid sessionId)
     {
-        CancellationTokenSource? lifetimeToDispose = null;
-
-        lock (_activeClientLock)
+        lock (_clientsLock)
         {
-            if (!ReferenceEquals(_activeClient, client))
+            _activeClients.Remove(sessionId);
+            if (_latestSessionId == sessionId)
             {
-                return;
+                _latestSessionId = _activeClients.Count == 0
+                    ? null
+                    : _activeClients.Keys.Last();
             }
-
-            lifetimeToDispose = _activeClientLifetime;
-            _activeClient = null;
-            _activeClientLifetime = null;
-            _activeRemoteAddress = null;
         }
-
-        lifetimeToDispose?.Dispose();
     }
 
     private void CancelAndCloseClient(TClient? client, CancellationTokenSource? lifetime)
@@ -406,4 +445,10 @@ internal abstract class ConnectionServerBase<TClient> : IDisposable
     protected abstract string? GetRemoteAddress(TClient client);
 
     protected abstract void StopListening();
+
+    private sealed record ActiveClientContext(
+        Guid SessionId,
+        TClient Client,
+        CancellationTokenSource Lifetime,
+        string? RemoteAddress);
 }
