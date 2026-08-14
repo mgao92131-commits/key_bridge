@@ -9,6 +9,11 @@ internal static class AppLogger
         Write("INFO", message);
     }
 
+    public static void Warn(string message)
+    {
+        Write("WARN", message);
+    }
+
     public static void Error(string message, Exception? exception = null)
     {
         Write("ERROR", exception is null ? message : $"{message} {exception}");

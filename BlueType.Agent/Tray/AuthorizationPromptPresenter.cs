@@ -32,6 +32,47 @@ internal sealed class AuthorizationPromptPresenter
         }, null);
     }
 
+    /// <summary>
+    /// Closes any active authorization dialog on the UI thread.
+    /// Must be called from the WinForms UI thread during shutdown so Close runs
+    /// immediately instead of being queued behind a blocked ExitThreadCore.
+    /// </summary>
+    public void CloseActivePrompt()
+    {
+        AuthPromptForm? form;
+        lock (_lock)
+        {
+            form = _activeForm;
+        }
+
+        if (form is null || form.IsDisposed)
+        {
+            return;
+        }
+
+        try
+        {
+            if (form.IsHandleCreated && form.InvokeRequired)
+            {
+                form.Invoke(new MethodInvoker(() =>
+                {
+                    if (!form.IsDisposed)
+                    {
+                        form.Close();
+                    }
+                }));
+            }
+            else if (!form.IsDisposed)
+            {
+                form.Close();
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error("Failed to close authorization prompt.", ex);
+        }
+    }
+
     public Task<AuthPromptDecision> ShowAsync(AuthPromptRequest request, CancellationToken cancellationToken)
     {
         if (!Environment.UserInteractive || !Win32.CanAccessInputDesktop())
@@ -55,7 +96,7 @@ internal sealed class AuthorizationPromptPresenter
                     {
                         _activeForm = form;
                     }
-                    
+
                     registration = cancellationToken.Register(
                         () =>
                         {
@@ -63,7 +104,16 @@ internal sealed class AuthorizationPromptPresenter
                             {
                                 if (!form.IsDisposed && form.IsHandleCreated)
                                 {
-                                    form.BeginInvoke(new MethodInvoker(form.Close));
+                                    // Prefer Invoke so a canceled session can close a modal dialog
+                                    // even when the UI thread is pumping ShowDialog.
+                                    if (form.InvokeRequired)
+                                    {
+                                        form.BeginInvoke(new MethodInvoker(form.Close));
+                                    }
+                                    else
+                                    {
+                                        form.Close();
+                                    }
                                 }
                             }
                             catch
@@ -91,8 +141,12 @@ internal sealed class AuthorizationPromptPresenter
                     registration.Dispose();
                     lock (_lock)
                     {
-                        if (_activeForm == form) _activeForm = null;
+                        if (_activeForm == form)
+                        {
+                            _activeForm = null;
+                        }
                     }
+
                     form?.Dispose();
                 }
             },

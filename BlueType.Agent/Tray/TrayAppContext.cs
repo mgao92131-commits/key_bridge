@@ -21,6 +21,7 @@ internal sealed class TrayAppContext : ApplicationContext
     private readonly System.Windows.Forms.Timer _alertResetTimer;
     private AlertLevel _alertLevel = AlertLevel.None;
     private string _lastServerMessage = string.Empty;
+    private int _isShuttingDown;
 
     public TrayAppContext()
     {
@@ -77,6 +78,11 @@ internal sealed class TrayAppContext : ApplicationContext
 
     private void OnOpenSettings(object? sender, EventArgs e)
     {
+        if (Volatile.Read(ref _isShuttingDown) != 0)
+        {
+            return;
+        }
+
         if (_authorizationPrompt.HasActivePrompt)
         {
             _authorizationPrompt.BringToFrontIfActive();
@@ -94,8 +100,31 @@ internal sealed class TrayAppContext : ApplicationContext
         _settingsForm.BringToFront();
     }
 
-    private void OnExit(object? sender, EventArgs e)
+    private async void OnExit(object? sender, EventArgs e)
     {
+        if (Interlocked.Exchange(ref _isShuttingDown, 1) != 0)
+        {
+            return;
+        }
+
+        _exitMenuItem.Enabled = false;
+        _settingsMenuItem.Enabled = false;
+        _disconnectMenuItem.Enabled = false;
+
+        AppLogger.Info("Agent shutdown requested.");
+
+        try
+        {
+            AppLogger.Info("Closing authorization prompt.");
+            _authorizationPrompt.CloseActivePrompt();
+
+            await _applicationHost.StopAsync();
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error("Agent shutdown failed.", ex);
+        }
+
         ExitThread();
     }
 
@@ -177,6 +206,8 @@ internal sealed class TrayAppContext : ApplicationContext
 
     protected override void ExitThreadCore()
     {
+        AppLogger.Info("Disposing tray resources.");
+
         _alertResetTimer.Stop();
         _alertResetTimer.Dispose();
         _settingsForm.Close();
@@ -185,7 +216,11 @@ internal sealed class TrayAppContext : ApplicationContext
         _notifyIcon.Dispose();
         _iconGenerator.Dispose();
         _settingsForm.Dispose();
+
+        // Host should already be stopped in OnExit; Dispose is an idempotent safety net.
         _applicationHost.Dispose();
+
+        AppLogger.Info("Tray resources disposed.");
         base.ExitThreadCore();
     }
 }

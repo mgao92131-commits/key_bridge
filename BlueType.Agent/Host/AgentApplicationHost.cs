@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using BlueType.Agent.Bluetooth;
 using BlueType.Agent.Core;
 using BlueType.Agent.Models;
@@ -13,6 +14,9 @@ internal sealed class AgentApplicationHost : IDisposable
     private readonly ShortcutProfileDispatcher _shortcutProfiles;
     private readonly TcpServer _tcpServer;
     private readonly BluetoothServer _bluetoothServer;
+    private readonly object _stopLock = new();
+    private Task? _stopTask;
+    private int _stopped;
 
     public AgentApplicationHost(Func<AuthPromptRequest, CancellationToken, Task<AuthPromptDecision>> promptForAuthorizationAsync)
     {
@@ -58,18 +62,69 @@ internal sealed class AgentApplicationHost : IDisposable
         return true;
     }
 
+    public Task StopAsync(CancellationToken cancellationToken = default)
+    {
+        lock (_stopLock)
+        {
+            if (_stopTask is not null)
+            {
+                return _stopTask;
+            }
+
+            _stopTask = StopCoreAsync(cancellationToken);
+            return _stopTask;
+        }
+    }
+
     public void Dispose()
     {
-        _bluetoothServer.ConnectionStateChanged -= ForwardConnectionStateChanged;
-        _bluetoothServer.ServerMessage -= ForwardServerMessage;
-        _tcpServer.ConnectionStateChanged -= ForwardConnectionStateChanged;
-        _tcpServer.ServerMessage -= ForwardServerMessage;
+        try
+        {
+            if (!StopAsync().Wait(TimeSpan.FromSeconds(5)))
+            {
+                AppLogger.Warn("Agent host Dispose timed out waiting for StopAsync.");
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error("Agent host Dispose stop failed.", ex);
+        }
+        finally
+        {
+            _bluetoothServer.Dispose();
+            _tcpServer.Dispose();
+        }
+    }
 
-        _bluetoothServer.Dispose();
-        _tcpServer.Dispose();
-        _shortcutProfiles.Dispose();
-        _clipboardService.Dispose();
-        _inputInjector.Dispose();
+    private async Task StopCoreAsync(CancellationToken cancellationToken)
+    {
+        if (Interlocked.Exchange(ref _stopped, 1) != 0)
+        {
+            return;
+        }
+
+        var startedAt = Stopwatch.StartNew();
+        AppLogger.Info("Stopping agent host.");
+
+        try
+        {
+            await Task.WhenAll(
+                _bluetoothServer.StopAsync(cancellationToken),
+                _tcpServer.StopAsync(cancellationToken));
+        }
+        finally
+        {
+            _bluetoothServer.ConnectionStateChanged -= ForwardConnectionStateChanged;
+            _bluetoothServer.ServerMessage -= ForwardServerMessage;
+            _tcpServer.ConnectionStateChanged -= ForwardConnectionStateChanged;
+            _tcpServer.ServerMessage -= ForwardServerMessage;
+
+            _shortcutProfiles.Dispose();
+            _clipboardService.Dispose();
+            _inputInjector.Dispose();
+
+            AppLogger.Info($"Agent host stopped in {startedAt.ElapsedMilliseconds} ms.");
+        }
     }
 
     private void ForwardConnectionStateChanged(ConnectionState state)

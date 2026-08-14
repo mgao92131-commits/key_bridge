@@ -12,10 +12,13 @@ internal sealed class BluetoothServer : ConnectionServerBase<BluetoothClient>
         : base(sessionProcessor)
     {
     }
-    
+
     protected override string TransportDisplayName => "Bluetooth";
 
     protected override string SessionTransportName => "bluetooth";
+
+    // AcceptBluetoothClient is a sync blocking call; Stop() may not always unblock promptly.
+    protected override TimeSpan ListenLoopShutdownTimeout => TimeSpan.FromSeconds(2);
 
     public void Start()
     {
@@ -39,7 +42,21 @@ internal sealed class BluetoothServer : ConnectionServerBase<BluetoothClient>
 
     protected override Task<BluetoothClient> AcceptClientAsync(CancellationToken cancellationToken)
     {
-        return Task.Run(() => _listener!.AcceptBluetoothClient(), cancellationToken);
+        var listener = _listener
+            ?? throw new ObjectDisposedException(nameof(BluetoothServer));
+
+        // LongRunning: do not occupy a thread-pool worker with a blocking RFCOMM accept.
+        // CancellationToken cannot abort AcceptBluetoothClient once it is inside the native wait;
+        // StopListening() must unblock it, and StopAsync bounds the wait.
+        return Task.Factory.StartNew(
+            () =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return listener.AcceptBluetoothClient();
+            },
+            cancellationToken,
+            TaskCreationOptions.LongRunning,
+            TaskScheduler.Default);
     }
 
     protected override ClientSession CreateSession(BluetoothClient client)
@@ -83,6 +100,19 @@ internal sealed class BluetoothServer : ConnectionServerBase<BluetoothClient>
 
     protected override void StopListening()
     {
-        _listener?.Stop();
+        var listener = Interlocked.Exchange(ref _listener, null);
+        if (listener is null)
+        {
+            return;
+        }
+
+        try
+        {
+            listener.Stop();
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error("Bluetooth listener Stop() failed.", ex);
+        }
     }
 }

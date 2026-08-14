@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - "BlueType.Agent/**"
+      - "BlueType.Agent.Tests/**"
       - "BlueType.Protocol/**"
       - "BlueType.sln"
       - ".github/workflows/build-windows-agent.yml"
@@ -23,8 +24,14 @@ jobs:
         with:
           dotnet-version: "9.0.x"
 
+      - name: Restore
+        run: dotnet restore BlueType.sln
+
+      - name: Test Windows agent
+        run: dotnet test BlueType.Agent.Tests/BlueType.Agent.Tests.csproj -c Release --no-restore
+
       - name: Publish Windows agent
-        run: dotnet publish BlueType.Agent/BlueType.Agent.csproj -c Release -o artifacts/windows-agent
+        run: dotnet publish BlueType.Agent/BlueType.Agent.csproj -c Release -o artifacts/windows-agent --no-restore
 
       - name: Zip published agent
         shell: pwsh
