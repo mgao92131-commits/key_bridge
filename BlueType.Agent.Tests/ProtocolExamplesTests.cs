@@ -97,6 +97,18 @@ public sealed class ProtocolExamplesTests
             GetProtocolConstants(typeof(Responses)));
     }
 
+    [Fact]
+    public async Task InvalidProtocolExamples_AreRejectedByV1Contract()
+    {
+        var manifest = await LoadManifestAsync();
+
+        foreach (var path in Directory.EnumerateFiles(FindInvalidDirectory(), "*.json").OrderBy(Path.GetFileName))
+        {
+            using var document = JsonDocument.Parse(await File.ReadAllTextAsync(path));
+            Assert.False(IsValidEnvelope(document.RootElement, manifest), path);
+        }
+    }
+
     private sealed record ProtocolManifest(
         int Version,
         string[] Commands,
@@ -121,9 +133,126 @@ public sealed class ProtocolExamplesTests
             .ToArray();
     }
 
+    private static bool IsValidEnvelope(JsonElement root, ProtocolManifest manifest)
+    {
+        if (root.ValueKind != JsonValueKind.Object ||
+            !root.TryGetProperty("v", out var version) ||
+            version.ValueKind != JsonValueKind.Number ||
+            !version.TryGetInt32(out var versionValue) ||
+            versionValue != manifest.Version ||
+            !HasNonEmptyString(root, "id") ||
+            !HasNonEmptyString(root, "type") ||
+            !root.TryGetProperty("payload", out var payload) ||
+            payload.ValueKind != JsonValueKind.Object)
+        {
+            return false;
+        }
+
+        var type = root.GetProperty("type").GetString()!;
+        if (!manifest.Commands.Concat(manifest.Responses).Contains(type, StringComparer.Ordinal))
+        {
+            return false;
+        }
+
+        return type switch
+        {
+            Commands.Hello => HasNonEmptyString(payload, "deviceId") && HasNonEmptyString(payload, "deviceName"),
+            Commands.TextInsert => HasString(payload, "text"),
+            Commands.KeyTap or Commands.KeyDown or Commands.KeyUp => HasNonEmptyString(payload, "key"),
+            Commands.Combo => HasStringArray(payload, "keys"),
+            Commands.MouseMove => HasInt(payload, "dx") && HasInt(payload, "dy"),
+            Commands.MouseButton => HasNonEmptyString(payload, "button") && HasOneOf(payload, "action", "down", "up"),
+            Commands.MouseClick => HasNonEmptyString(payload, "button") &&
+                                   (!payload.TryGetProperty("repeat", out var repeat) || IsInt(repeat)),
+            Commands.MouseScroll => OptionalInt(payload, "deltaX") && OptionalInt(payload, "deltaY"),
+            Commands.ClipboardSet => HasString(payload, "text"),
+            Commands.ClipboardGet or Commands.Ping or Responses.Pong => true,
+            Responses.Ack => HasBoolean(payload, "ok"),
+            Responses.Error => HasErrorPayload(payload, manifest),
+            Responses.AuthPending => HasInt(payload, "timeoutSec") && HasString(payload, "message"),
+            Responses.AuthResult => HasBoolean(payload, "ok") &&
+                                    HasBoolean(payload, "persistToken") &&
+                                    HasBoolean(payload, "trusted"),
+            Responses.ClipboardValue => HasString(payload, "text"),
+            Responses.ShortcutProfile => HasNullableString(payload, "name") && HasNullableObject(payload, "profile"),
+            _ => false,
+        };
+    }
+
+    private static bool HasErrorPayload(JsonElement payload, ProtocolManifest manifest)
+    {
+        return HasString(payload, "message") &&
+               payload.TryGetProperty("code", out var code) &&
+               code.ValueKind == JsonValueKind.String &&
+               code.GetString() is string codeValue &&
+               manifest.ErrorCodes.Contains(codeValue, StringComparer.Ordinal);
+    }
+
+    private static bool HasNonEmptyString(JsonElement element, string propertyName)
+    {
+        return HasString(element, propertyName) && !string.IsNullOrWhiteSpace(element.GetProperty(propertyName).GetString());
+    }
+
+    private static bool HasString(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.String;
+    }
+
+    private static bool HasNullableString(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var property) &&
+               property.ValueKind is JsonValueKind.String or JsonValueKind.Null;
+    }
+
+    private static bool HasNullableObject(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var property) &&
+               property.ValueKind is JsonValueKind.Object or JsonValueKind.Null;
+    }
+
+    private static bool HasStringArray(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var property) &&
+               property.ValueKind == JsonValueKind.Array &&
+               property.EnumerateArray().All(item => item.ValueKind == JsonValueKind.String);
+    }
+
+    private static bool HasInt(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var property) && IsInt(property);
+    }
+
+    private static bool OptionalInt(JsonElement element, string propertyName)
+    {
+        return !element.TryGetProperty(propertyName, out var property) || IsInt(property);
+    }
+
+    private static bool IsInt(JsonElement property)
+    {
+        return property.ValueKind == JsonValueKind.Number && property.TryGetInt32(out _);
+    }
+
+    private static bool HasBoolean(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var property) &&
+               property.ValueKind is JsonValueKind.True or JsonValueKind.False;
+    }
+
+    private static bool HasOneOf(JsonElement element, string propertyName, params string[] values)
+    {
+        return HasString(element, propertyName) &&
+               element.GetProperty(propertyName).GetString() is string value &&
+               values.Contains(value, StringComparer.Ordinal);
+    }
+
     private static string FindExamplesDirectory()
     {
         return Path.Combine(FindSpecDirectory(), "examples");
+    }
+
+    private static string FindInvalidDirectory()
+    {
+        return Path.Combine(FindSpecDirectory(), "invalid");
     }
 
     private static string FindSpecDirectory()

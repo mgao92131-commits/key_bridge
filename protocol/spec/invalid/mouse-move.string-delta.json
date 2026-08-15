@@ -1,0 +1,9 @@
+{
+  "v": 1,
+  "id": "invalid-mouse-move-string-delta",
+  "type": "mouse_move",
+  "payload": {
+    "dx": "40",
+    "dy": 15
+  }
+}

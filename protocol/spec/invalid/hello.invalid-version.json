@@ -1,0 +1,9 @@
+{
+  "v": 2,
+  "id": "invalid-hello-version",
+  "type": "hello",
+  "payload": {
+    "deviceId": "android-001",
+    "deviceName": "Pixel"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "v": 1,
+  "id": "invalid-hello-missing-device-id",
+  "type": "hello",
+  "payload": {
+    "deviceName": "Pixel",
+    "appVersion": "1.0.0"
+  }
+}

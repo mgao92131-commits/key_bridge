@@ -1,0 +1,6 @@
+{
+  "v": 1,
+  "id": "invalid-clipboard-set-missing-text",
+  "type": "clipboard_set",
+  "payload": {}
+}

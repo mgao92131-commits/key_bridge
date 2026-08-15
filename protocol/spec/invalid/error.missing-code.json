@@ -1,0 +1,8 @@
+{
+  "v": 1,
+  "id": "invalid-error-missing-code",
+  "type": "error",
+  "payload": {
+    "message": "The error code is missing."
+  }
+}
