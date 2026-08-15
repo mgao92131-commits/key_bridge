@@ -1,0 +1,65 @@
+name: Protocol Contract
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+    paths:
+      - "protocol/**"
+      - "BlueType.Protocol/**"
+      - "BlueType.Agent/**"
+      - "BlueType.Agent.Tests/**"
+      - "BlueType.Android/**"
+      - "BlueType.Mac/**"
+      - ".github/workflows/protocol-contract.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  windows-contract:
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Restore .NET solution
+        run: dotnet restore BlueType.sln
+
+      - name: Run Windows protocol contract tests
+        run: dotnet test BlueType.Agent.Tests/BlueType.Agent.Tests.csproj -c Release --no-restore
+
+  android-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run Android protocol contract tests
+        working-directory: BlueType.Android
+        run: ./gradlew :app:testDebugUnitTest --no-daemon
+
+  mac-contract:
+    runs-on: macos-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Run Mac protocol contract tests
+        working-directory: BlueType.Mac
+        run: swift test
