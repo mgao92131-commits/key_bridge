@@ -23,6 +23,7 @@ internal static class AgentCompositionRoot
         var deviceRegistry = new DeviceRegistry();
         var commandHandlers = new ICommandHandler[]
         {
+            new PingCommandHandler(),
             new KeyboardCommandHandler(inputInjector),
             new MouseCommandHandler(inputInjector),
             new ClipboardCommandHandler(clipboardService),

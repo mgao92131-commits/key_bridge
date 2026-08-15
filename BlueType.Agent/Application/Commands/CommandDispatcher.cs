@@ -1,5 +1,4 @@
 using BlueType.Protocol;
-using BlueType.Agent.Infrastructure.Logging;
 
 namespace BlueType.Agent.Application.Commands;
 
@@ -27,14 +26,6 @@ internal sealed class CommandDispatcher
 
     public Task<Envelope> DispatchAsync(Envelope envelope, CancellationToken cancellationToken = default)
     {
-        switch (envelope.Type)
-        {
-            case BlueType.Protocol.Commands.Ping:
-                AppLogger.Info("Handled command: ping.");
-                return Task.FromResult(
-                    JsonProtocol.CreateEnvelope(envelope.Id, BlueType.Protocol.Commands.Pong, new { ok = true }));
-        }
-
         if (_handlers.TryGetValue(envelope.Type, out var handler))
         {
             return handler.HandleAsync(envelope, cancellationToken);

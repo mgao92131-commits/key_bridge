@@ -12,6 +12,7 @@ internal static class CommandDispatcherTestFactory
     {
         return new CommandDispatcher(
         [
+            new PingCommandHandler(),
             new KeyboardCommandHandler(inputInjector),
             new MouseCommandHandler(inputInjector),
             new ClipboardCommandHandler(clipboardService),
