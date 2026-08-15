@@ -1,8 +1,8 @@
 using BlueType.Agent.Models;
 using BlueType.Agent.Application.Commands;
+using BlueType.Agent.Application.Ports;
 using BlueType.Agent.Application.Shortcuts;
 using BlueType.Agent.Application.Authorization;
-using BlueType.Agent.Infrastructure.Input;
 using BlueType.Agent.Infrastructure.Logging;
 using BlueType.Agent.Transport;
 using BlueType.Protocol;
@@ -20,15 +20,14 @@ internal sealed class SessionCoordinator
     public SessionCoordinator(
         CommandDispatcher commandDispatcher,
         AuthService authService,
-        WindowsInputService inputInjector)
+        IInputRelease inputRelease)
         : this(
             commandDispatcher,
             authService,
-            inputInjector,
+            inputRelease,
             new ActiveSessionManager(),
             NullShortcutProfileCoordinator.Instance,
             (_, _) => Task.FromResult(AuthPromptDecision.Deny),
-            inputInjector,
             new SessionHeartbeat())
     {
     }
@@ -36,18 +35,17 @@ internal sealed class SessionCoordinator
     public SessionCoordinator(
         CommandDispatcher commandDispatcher,
         AuthService authService,
-        WindowsInputService inputInjector,
+        IInputRelease inputRelease,
         ActiveSessionManager activeSessionManager,
         IShortcutProfileCoordinator shortcutProfiles,
         Func<AuthPromptRequest, CancellationToken, Task<AuthPromptDecision>> promptAsync)
         : this(
             commandDispatcher,
             authService,
-            inputInjector,
+            inputRelease,
             activeSessionManager,
             shortcutProfiles,
             promptAsync,
-            inputInjector,
             new SessionHeartbeat())
     {
     }
@@ -55,11 +53,10 @@ internal sealed class SessionCoordinator
     internal SessionCoordinator(
         CommandDispatcher commandDispatcher,
         AuthService authService,
-        WindowsInputService inputInjector,
+        IInputRelease inputRelease,
         ActiveSessionManager activeSessionManager,
         IShortcutProfileCoordinator shortcutProfiles,
         Func<AuthPromptRequest, CancellationToken, Task<AuthPromptDecision>> promptAsync,
-        IInputRelease inputRelease,
         SessionHeartbeat heartbeat)
     {
         _commandDispatcher = commandDispatcher;

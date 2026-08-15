@@ -2,13 +2,6 @@ using BlueType.Agent.Application.Ports;
 
 namespace BlueType.Agent.Infrastructure.Input;
 
-internal interface IInputRelease
-{
-    Task ReleaseAllKeysAsync(CancellationToken cancellationToken = default);
-
-    Task ReleaseAllMouseButtonsAsync(CancellationToken cancellationToken = default);
-}
-
 internal sealed class WindowsInputService : IDisposable, IInputService, IInputRelease
 {
     private readonly InputExecutionQueue _executionQueue;

@@ -1,5 +1,6 @@
 using BlueType.Agent.Application.Commands;
 using BlueType.Agent.Application.Authorization;
+using BlueType.Agent.Application.Ports;
 using BlueType.Agent.Application.Sessions;
 using BlueType.Agent.Application.Shortcuts;
 using BlueType.Agent.Infrastructure.Clipboard;
@@ -365,11 +366,10 @@ public sealed class SessionCoordinatorTests
             Processor = new SessionCoordinator(
                 Dispatcher,
                 AuthService,
-                _inputInjector,
+                InputRelease,
                 ActiveSessions,
                 ShortcutProfiles,
                 (_, _) => Task.FromResult(AuthPromptDecision.Deny),
-                InputRelease,
                 heartbeat ?? new SessionHeartbeat());
         }
 
