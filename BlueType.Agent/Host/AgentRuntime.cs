@@ -1,34 +1,30 @@
 using System.Diagnostics;
-using BlueType.Agent.Application.Commands;
 using BlueType.Agent.Application.Sessions;
-using BlueType.Agent.Infrastructure.Clipboard;
-using BlueType.Agent.Infrastructure.Input;
 using BlueType.Agent.Infrastructure.Logging;
 using BlueType.Agent.Models;
-using BlueType.Agent.Transport.Bluetooth;
-using BlueType.Agent.Transport.Tcp;
+using BlueType.Agent.Transport;
 
 namespace BlueType.Agent.Host;
 
 internal sealed class AgentRuntime
 {
-    private readonly InputInjector _inputInjector;
-    private readonly ClipboardService _clipboardService;
-    private readonly ShortcutProfileDispatcher _shortcutProfiles;
+    private readonly IDisposable _inputInjector;
+    private readonly IDisposable _clipboardService;
+    private readonly IDisposable _shortcutProfiles;
     private readonly ActiveSessionManager _activeSessionManager;
-    private readonly TcpServer _tcpServer;
-    private readonly BluetoothServer _bluetoothServer;
+    private readonly IRuntimeTransport _tcpServer;
+    private readonly IRuntimeTransport _bluetoothServer;
     private readonly object _stopLock = new();
     private Task? _stopTask;
     private int _stopped;
 
     internal AgentRuntime(
-        InputInjector inputInjector,
-        ClipboardService clipboardService,
-        ShortcutProfileDispatcher shortcutProfiles,
+        IDisposable inputInjector,
+        IDisposable clipboardService,
+        IDisposable shortcutProfiles,
         ActiveSessionManager activeSessionManager,
-        TcpServer tcpServer,
-        BluetoothServer bluetoothServer)
+        IRuntimeTransport tcpServer,
+        IRuntimeTransport bluetoothServer)
     {
         _inputInjector = inputInjector;
         _clipboardService = clipboardService;
@@ -113,11 +109,11 @@ internal sealed class AgentRuntime
             _tcpServer.ConnectionStateChanged -= ForwardConnectionStateChanged;
             _tcpServer.ServerMessage -= ForwardServerMessage;
 
-            _shortcutProfiles.Dispose();
-            _clipboardService.Dispose();
-            _inputInjector.Dispose();
-            _bluetoothServer.Dispose();
-            _tcpServer.Dispose();
+            DisposeResource(_shortcutProfiles, "shortcut profiles");
+            DisposeResource(_clipboardService, "clipboard service");
+            DisposeResource(_inputInjector, "input injector");
+            DisposeResource(_bluetoothServer, "Bluetooth server");
+            DisposeResource(_tcpServer, "TCP server");
 
             AppLogger.Info($"Agent runtime stopped in {startedAt.ElapsedMilliseconds} ms.");
         }
@@ -131,5 +127,17 @@ internal sealed class AgentRuntime
     private void ForwardServerMessage(string message)
     {
         ServerMessage?.Invoke(message);
+    }
+
+    private static void DisposeResource(IDisposable resource, string displayName)
+    {
+        try
+        {
+            resource.Dispose();
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error($"Failed to dispose {displayName} during agent runtime shutdown.", ex);
+        }
     }
 }

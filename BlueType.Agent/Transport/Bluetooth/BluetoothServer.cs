@@ -5,7 +5,7 @@ using InTheHand.Net.Sockets;
 
 namespace BlueType.Agent.Transport.Bluetooth;
 
-internal sealed class BluetoothServer : ConnectionServerBase<BluetoothClient>
+internal sealed class BluetoothServer : ConnectionServerBase<BluetoothClient>, IRuntimeTransport
 {
     private BluetoothListener? _listener;
 

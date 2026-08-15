@@ -7,7 +7,7 @@ using BlueType.Agent.Transport;
 
 namespace BlueType.Agent.Transport.Tcp;
 
-internal sealed class TcpServer : ConnectionServerBase<TcpClient>
+internal sealed class TcpServer : ConnectionServerBase<TcpClient>, IRuntimeTransport
 {
     private readonly TcpListener _listener;
 
