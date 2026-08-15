@@ -1,5 +1,4 @@
 using System.Runtime.InteropServices;
-using System.Threading.Channels;
 using BlueType.Agent.Application.Ports;
 using BlueType.Agent.Native;
 
@@ -14,20 +13,13 @@ internal interface IInputRelease
 
 internal sealed class InputInjector : IDisposable, IInputService, IInputRelease
 {
-    private readonly Channel<QueuedInjection> _queue;
-    private readonly CancellationTokenSource _shutdown = new();
-    private readonly Task _worker;
+    private readonly InputExecutionQueue _executionQueue;
     private readonly Dictionary<ushort, KeyDefinition> _pressedKeys = new();
     private readonly HashSet<string> _pressedMouseButtons = new(StringComparer.OrdinalIgnoreCase);
 
     public InputInjector()
     {
-        _queue = Channel.CreateUnbounded<QueuedInjection>(new UnboundedChannelOptions
-        {
-            SingleReader = true,
-            SingleWriter = false,
-        });
-        _worker = Task.Run(ProcessQueueAsync);
+        _executionQueue = new InputExecutionQueue();
     }
 
     public Task SendTextAsync(string text, CancellationToken cancellationToken = default)
@@ -135,47 +127,12 @@ internal sealed class InputInjector : IDisposable, IInputService, IInputRelease
             // Best effort only during shutdown.
         }
 
-        _queue.Writer.TryComplete();
-        _shutdown.Cancel();
-        try
-        {
-            _worker.GetAwaiter().GetResult();
-        }
-        catch
-        {
-            // Ignore worker shutdown exceptions during app exit.
-        }
-        finally
-        {
-            _shutdown.Dispose();
-        }
+        _executionQueue.Dispose();
     }
 
     private async Task EnqueueAsync(Action action, CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        await _queue.Writer.WriteAsync(new QueuedInjection(action, completion), cancellationToken);
-
-        using var registration = cancellationToken.Register(() => completion.TrySetCanceled(cancellationToken));
-        await completion.Task;
-    }
-
-    private async Task ProcessQueueAsync()
-    {
-        await foreach (var queued in _queue.Reader.ReadAllAsync(_shutdown.Token))
-        {
-            try
-            {
-                queued.Action();
-                queued.Completion.TrySetResult();
-            }
-            catch (Exception ex)
-            {
-                queued.Completion.TrySetException(ex);
-            }
-        }
+        await _executionQueue.EnqueueAsync(action, cancellationToken);
     }
 
     private static void SendTextCore(string text)
@@ -511,6 +468,5 @@ internal sealed class InputInjector : IDisposable, IInputService, IInputRelease
         }
     }
 
-    private sealed record QueuedInjection(Action Action, TaskCompletionSource Completion);
     private readonly record struct MouseButtonDefinition(string Name, uint DownFlag, uint UpFlag);
 }
