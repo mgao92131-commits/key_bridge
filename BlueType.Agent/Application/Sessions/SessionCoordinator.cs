@@ -19,7 +19,7 @@ internal sealed class SessionCoordinator
     public SessionCoordinator(
         CommandDispatcher commandDispatcher,
         AuthService authService,
-        InputInjector inputInjector)
+        WindowsInputService inputInjector)
         : this(
             commandDispatcher,
             authService,
@@ -35,7 +35,7 @@ internal sealed class SessionCoordinator
     public SessionCoordinator(
         CommandDispatcher commandDispatcher,
         AuthService authService,
-        InputInjector inputInjector,
+        WindowsInputService inputInjector,
         ActiveSessionManager activeSessionManager,
         IShortcutProfileDispatcher shortcutProfiles,
         Func<AuthPromptRequest, CancellationToken, Task<AuthPromptDecision>> promptAsync)
@@ -54,7 +54,7 @@ internal sealed class SessionCoordinator
     internal SessionCoordinator(
         CommandDispatcher commandDispatcher,
         AuthService authService,
-        InputInjector inputInjector,
+        WindowsInputService inputInjector,
         ActiveSessionManager activeSessionManager,
         IShortcutProfileDispatcher shortcutProfiles,
         Func<AuthPromptRequest, CancellationToken, Task<AuthPromptDecision>> promptAsync,

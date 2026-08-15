@@ -488,7 +488,7 @@ public sealed class ConnectionServerShutdownTests
 
     private sealed class ServerHarness : IDisposable
     {
-        private readonly InputInjector _inputInjector = new();
+        private readonly WindowsInputService _inputInjector = new();
         private readonly ClipboardService _clipboardService = new();
         private readonly DeviceRegistrySandbox _sandbox = new();
 

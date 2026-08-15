@@ -17,7 +17,7 @@ internal static class AgentCompositionRoot
     internal static AgentRuntime Create(
         Func<AuthPromptRequest, CancellationToken, Task<AuthPromptDecision>> promptForAuthorizationAsync)
     {
-        var inputInjector = new InputInjector();
+        var inputInjector = new WindowsInputService();
         var clipboardService = new ClipboardService();
         var shortcutProfiles = new ShortcutProfileDispatcher();
 

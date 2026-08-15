@@ -344,7 +344,7 @@ public sealed class SessionCoordinatorTests
 
     private sealed class ProcessorHarness : IDisposable
     {
-        private readonly InputInjector _inputInjector = new();
+        private readonly WindowsInputService _inputInjector = new();
         private readonly ClipboardService _clipboardService = new();
 
         private ProcessorHarness(

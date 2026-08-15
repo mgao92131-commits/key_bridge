@@ -7,7 +7,7 @@ namespace BlueType.Agent.Tests.TestHelpers;
 internal static class CommandDispatcherTestFactory
 {
     public static CommandDispatcher Create(
-        InputInjector inputInjector,
+        WindowsInputService inputInjector,
         ClipboardService clipboardService)
     {
         return new CommandDispatcher(

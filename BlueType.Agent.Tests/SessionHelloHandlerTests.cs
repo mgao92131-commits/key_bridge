@@ -86,7 +86,7 @@ public sealed class SessionHelloHandlerTests
 
     private sealed class CommandHarness : IDisposable
     {
-        private readonly InputInjector _inputInjector = new();
+        private readonly WindowsInputService _inputInjector = new();
         private readonly ClipboardService _clipboardService = new();
 
         public MemoryStream Stream { get; } = new();

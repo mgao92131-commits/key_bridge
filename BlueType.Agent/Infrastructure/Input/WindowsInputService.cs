@@ -9,13 +9,13 @@ internal interface IInputRelease
     Task ReleaseAllMouseButtonsAsync(CancellationToken cancellationToken = default);
 }
 
-internal sealed class InputInjector : IDisposable, IInputService, IInputRelease
+internal sealed class WindowsInputService : IDisposable, IInputService, IInputRelease
 {
     private readonly InputExecutionQueue _executionQueue;
     private readonly WindowsKeyboardInjector _keyboard;
     private readonly WindowsMouseInjector _mouse;
 
-    public InputInjector()
+    public WindowsInputService()
     {
         _executionQueue = new InputExecutionQueue();
         var sender = new WindowsInputSender();

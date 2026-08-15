@@ -139,7 +139,7 @@ public sealed class CommandDispatcherTests
 
     private sealed class CommandHarness : IDisposable
     {
-        private readonly InputInjector _inputInjector = new();
+        private readonly WindowsInputService _inputInjector = new();
         private readonly ClipboardService _clipboardService = new();
 
         public CommandDispatcher Dispatcher { get; }

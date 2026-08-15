@@ -8,7 +8,7 @@ public sealed class InputServiceTests
     [Fact]
     public async Task SendTextAsync_EmptyText_CompletesWithoutInjection()
     {
-        using var input = new InputInjector();
+        using var input = new WindowsInputService();
 
         await input.SendTextAsync(string.Empty);
     }
@@ -16,7 +16,7 @@ public sealed class InputServiceTests
     [Fact]
     public async Task MoveMouseAsync_ZeroDelta_CompletesWithoutInjection()
     {
-        using var input = new InputInjector();
+        using var input = new WindowsInputService();
 
         await input.MoveMouseAsync(0, 0);
     }
@@ -24,7 +24,7 @@ public sealed class InputServiceTests
     [Fact]
     public async Task ClickMouseAsync_NonPositiveRepeat_CompletesWithoutInjection()
     {
-        using var input = new InputInjector();
+        using var input = new WindowsInputService();
 
         await input.ClickMouseAsync("LEFT", 0);
         await input.ClickMouseAsync("LEFT", -1);
@@ -33,7 +33,7 @@ public sealed class InputServiceTests
     [Fact]
     public async Task ReleaseKeyAsync_UnpressedKnownKey_CompletesWithoutInjection()
     {
-        using var input = new InputInjector();
+        using var input = new WindowsInputService();
 
         await input.ReleaseKeyAsync("A");
     }
@@ -41,7 +41,7 @@ public sealed class InputServiceTests
     [Fact]
     public async Task ReleaseAllAsync_WhenNothingIsPressed_CompletesWithoutInjection()
     {
-        using var input = new InputInjector();
+        using var input = new WindowsInputService();
 
         await input.ReleaseAllKeysAsync();
         await input.ReleaseAllMouseButtonsAsync();
@@ -50,7 +50,7 @@ public sealed class InputServiceTests
     [Fact]
     public async Task CommandWithCancelledToken_ThrowsBeforeItIsQueued()
     {
-        using var input = new InputInjector();
+        using var input = new WindowsInputService();
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
 
