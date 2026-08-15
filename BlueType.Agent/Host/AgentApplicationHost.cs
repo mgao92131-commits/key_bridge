@@ -1,15 +1,14 @@
 using System.Diagnostics;
-using BlueType.Agent.Bluetooth;
+using BlueType.Agent.Transport.Bluetooth;
 using BlueType.Agent.Application.Commands;
 using BlueType.Agent.Application.Authorization;
-using BlueType.Agent.Core;
 using BlueType.Agent.Domain.Devices;
 using BlueType.Agent.Infrastructure.Clipboard;
 using BlueType.Agent.Infrastructure.Input;
 using BlueType.Agent.Infrastructure.Logging;
 using BlueType.Agent.Models;
 using BlueType.Agent.Application.Sessions;
-using BlueType.Agent.Network;
+using BlueType.Agent.Transport.Tcp;
 
 namespace BlueType.Agent.Host;
 

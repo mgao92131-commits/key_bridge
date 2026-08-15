@@ -1,4 +1,4 @@
-namespace BlueType.Agent.Bluetooth;
+namespace BlueType.Agent.Transport.Bluetooth;
 
 internal static class ServiceConstants
 {

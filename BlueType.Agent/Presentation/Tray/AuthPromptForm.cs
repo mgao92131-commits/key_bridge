@@ -1,7 +1,6 @@
 using BlueType.Agent.Models;
-using BlueType.Agent.Core;
 
-namespace BlueType.Agent.Tray;
+namespace BlueType.Agent.Presentation.Tray;
 
 internal sealed class AuthPromptForm : Form
 {

@@ -1,4 +1,4 @@
-namespace BlueType.Agent.Network;
+namespace BlueType.Agent.Transport.Tcp;
 
 internal static class PortConstants
 {

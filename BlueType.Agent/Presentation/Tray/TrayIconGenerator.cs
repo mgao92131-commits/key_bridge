@@ -1,9 +1,8 @@
 using System.Drawing;
 using System.Runtime.InteropServices;
-using BlueType.Agent.Core;
 using BlueType.Agent.Models;
 
-namespace BlueType.Agent.Tray;
+namespace BlueType.Agent.Presentation.Tray;
 
 internal enum AlertLevel
 {

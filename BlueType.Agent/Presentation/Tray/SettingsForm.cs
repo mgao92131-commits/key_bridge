@@ -1,7 +1,6 @@
-using BlueType.Agent.Core;
 using BlueType.Agent.Models;
 
-namespace BlueType.Agent.Tray;
+namespace BlueType.Agent.Presentation.Tray;
 
 internal sealed class SettingsForm : Form
 {

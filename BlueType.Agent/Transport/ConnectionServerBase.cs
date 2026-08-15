@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using BlueType.Agent.Core;
 using BlueType.Agent.Infrastructure.Logging;
 using BlueType.Agent.Models;
 using BlueType.Agent.Application.Sessions;

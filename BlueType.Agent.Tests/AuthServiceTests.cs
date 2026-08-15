@@ -1,5 +1,4 @@
 using BlueType.Agent.Application.Authorization;
-using BlueType.Agent.Core;
 using BlueType.Agent.Domain.Devices;
 using BlueType.Agent.Models;
 using BlueType.Agent.Tests.TestHelpers;

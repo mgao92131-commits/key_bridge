@@ -1,10 +1,9 @@
-using BlueType.Agent.Core;
 using BlueType.Agent.Infrastructure.Logging;
 using BlueType.Agent.Application.Sessions;
 using BlueType.Agent.Transport;
 using InTheHand.Net.Sockets;
 
-namespace BlueType.Agent.Bluetooth;
+namespace BlueType.Agent.Transport.Bluetooth;
 
 internal sealed class BluetoothServer : ConnectionServerBase<BluetoothClient>
 {

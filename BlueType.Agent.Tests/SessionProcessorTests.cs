@@ -1,4 +1,3 @@
-using BlueType.Agent.Core;
 using BlueType.Agent.Application.Commands;
 using BlueType.Agent.Application.Authorization;
 using BlueType.Agent.Application.Sessions;

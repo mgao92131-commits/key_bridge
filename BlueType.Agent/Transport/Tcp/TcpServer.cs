@@ -1,12 +1,11 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
-using BlueType.Agent.Core;
 using BlueType.Agent.Infrastructure.Logging;
 using BlueType.Agent.Application.Sessions;
 using BlueType.Agent.Transport;
 
-namespace BlueType.Agent.Network;
+namespace BlueType.Agent.Transport.Tcp;
 
 internal sealed class TcpServer : ConnectionServerBase<TcpClient>
 {

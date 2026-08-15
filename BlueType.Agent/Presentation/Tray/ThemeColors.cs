@@ -1,6 +1,6 @@
 using System.Drawing;
 
-namespace BlueType.Agent.Core
+namespace BlueType.Agent.Presentation.Tray
 {
     public static class ThemeColors
     {

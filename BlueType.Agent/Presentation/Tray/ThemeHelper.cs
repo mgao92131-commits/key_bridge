@@ -2,7 +2,7 @@ using System;
 using System.Drawing;
 using System.Windows.Forms;
 
-namespace BlueType.Agent.Core
+namespace BlueType.Agent.Presentation.Tray
 {
     public static class ThemeHelper
     {

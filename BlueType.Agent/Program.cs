@@ -1,7 +1,6 @@
-using BlueType.Agent.Core;
 using BlueType.Agent.Infrastructure.Logging;
 using BlueType.Agent.Infrastructure.Persistence;
-using BlueType.Agent.Tray;
+using BlueType.Agent.Presentation.Tray;
 using System.Threading;
 
 namespace BlueType.Agent;

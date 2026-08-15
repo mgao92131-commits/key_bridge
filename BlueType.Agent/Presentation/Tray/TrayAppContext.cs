@@ -1,10 +1,9 @@
-using BlueType.Agent.Core;
 using BlueType.Agent.Host;
 using BlueType.Agent.Infrastructure.Logging;
 using BlueType.Agent.Infrastructure.Persistence;
 using BlueType.Agent.Models;
 
-namespace BlueType.Agent.Tray;
+namespace BlueType.Agent.Presentation.Tray;
 
 internal sealed class TrayAppContext : ApplicationContext
 {
