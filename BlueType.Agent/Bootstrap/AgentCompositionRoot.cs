@@ -6,6 +6,7 @@ using BlueType.Agent.Application.Shortcuts;
 using BlueType.Agent.Domain.Devices;
 using BlueType.Agent.Infrastructure.Clipboard;
 using BlueType.Agent.Infrastructure.Input;
+using BlueType.Agent.Infrastructure.Shortcuts;
 using BlueType.Agent.Models;
 using BlueType.Agent.Host;
 using BlueType.Agent.Transport.Bluetooth;
@@ -20,7 +21,9 @@ internal static class AgentCompositionRoot
     {
         var inputInjector = new WindowsInputService();
         var clipboardService = new ClipboardService();
-        var shortcutProfiles = new ShortcutProfileDispatcher(new ShortcutProfileMatcher());
+        var shortcutProfiles = new ShortcutProfileDispatcher(
+            new ShortcutProfileMatcher(),
+            new WindowsForegroundAppProvider());
 
         var deviceRegistry = new DeviceRegistry();
         var commandDispatcher = CreateCommandDispatcher(inputInjector, clipboardService);

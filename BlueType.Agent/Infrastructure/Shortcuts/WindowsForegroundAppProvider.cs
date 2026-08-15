@@ -1,11 +1,12 @@
 using System.Diagnostics;
+using BlueType.Agent.Application.Ports;
 using BlueType.Agent.Native;
 
 namespace BlueType.Agent.Infrastructure.Shortcuts;
 
-internal static class ForegroundProcessReader
+internal sealed class WindowsForegroundAppProvider : IForegroundAppProvider
 {
-    public static string? CurrentProcessName()
+    public string? GetCurrentAppId()
     {
         var window = Win32.GetForegroundWindow();
         if (window == 0)

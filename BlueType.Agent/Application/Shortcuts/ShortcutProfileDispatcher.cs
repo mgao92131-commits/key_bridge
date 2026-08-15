@@ -1,4 +1,5 @@
 using System.Text.Json;
+using BlueType.Agent.Application.Ports;
 using BlueType.Agent.Infrastructure.Logging;
 using BlueType.Agent.Infrastructure.Shortcuts;
 using BlueType.Agent.Transport;
@@ -20,6 +21,7 @@ internal sealed class ShortcutProfileDispatcher : IShortcutProfileDispatcher, ID
     private readonly object _gate = new();
     private readonly CancellationTokenSource _stop = new();
     private readonly IReadOnlyList<ShortcutProfileDefinition> _profiles;
+    private readonly IForegroundAppProvider _foregroundAppProvider;
     private readonly ShortcutProfileMatcher _matcher;
     private readonly Task _pollTask;
 
@@ -28,9 +30,12 @@ internal sealed class ShortcutProfileDispatcher : IShortcutProfileDispatcher, ID
     private long _observedSince;
     private string? _lastSentProfileKey;
 
-    public ShortcutProfileDispatcher(ShortcutProfileMatcher matcher)
+    public ShortcutProfileDispatcher(
+        ShortcutProfileMatcher matcher,
+        IForegroundAppProvider foregroundAppProvider)
     {
         _profiles = ShortcutProfileStore.Load();
+        _foregroundAppProvider = foregroundAppProvider;
         _matcher = matcher;
         _pollTask = Task.Run(PollAsync);
     }
@@ -78,7 +83,7 @@ internal sealed class ShortcutProfileDispatcher : IShortcutProfileDispatcher, ID
         {
             while (await timer.WaitForNextTickAsync(_stop.Token))
             {
-                var processName = ForegroundProcessReader.CurrentProcessName();
+                var processName = _foregroundAppProvider.GetCurrentAppId();
                 var now = Environment.TickCount64;
                 var stable = false;
 
@@ -117,7 +122,7 @@ internal sealed class ShortcutProfileDispatcher : IShortcutProfileDispatcher, ID
         lock (_gate)
         {
             session = _activeSession;
-            processName = _observedProcess ?? ForegroundProcessReader.CurrentProcessName();
+            processName = _observedProcess ?? _foregroundAppProvider.GetCurrentAppId();
         }
 
         if (session is null)
