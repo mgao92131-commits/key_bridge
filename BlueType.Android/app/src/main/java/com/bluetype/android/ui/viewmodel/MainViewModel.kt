@@ -17,7 +17,7 @@ import com.bluetype.android.domain.RemoteAction
 import com.bluetype.android.domain.UiRoute
 import com.bluetype.android.domain.ShortcutProfile
 import com.bluetype.android.data.StoredDevice
-import com.bluetype.android.data.PreferencesRepository
+import com.bluetype.android.data.preferences.PreferenceStores
 import com.bluetype.android.util.PermissionHelper
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,7 +28,7 @@ import kotlinx.coroutines.launch
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val connectionController = ConnectionController.getInstance(application)
-    private val preferencesRepository = PreferencesRepository(application)
+    private val uiPreferences = PreferenceStores(application).ui
 
     val connectionState: StateFlow<ConnectionState> = connectionController.state
     val uiRoute: StateFlow<UiRoute> = connectionController.uiRoute
@@ -72,7 +72,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
         viewModelScope.launch {
-            preferencesRepository.draftText().collect { text ->
+            uiPreferences.draftText().collect { text ->
                 if (_draftText.value != text) {
                     _draftText.value = text
                 }
@@ -106,7 +106,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _draftText.value = value
         draftSaveJob?.cancel()
         draftSaveJob = viewModelScope.launch {
-            preferencesRepository.saveDraftText(value)
+            uiPreferences.saveDraftText(value)
         }
     }
 
@@ -361,6 +361,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private suspend fun setDraftText(value: String) {
         draftSaveJob?.cancel()
         _draftText.value = value
-        preferencesRepository.saveDraftText(value)
+        uiPreferences.saveDraftText(value)
     }
 }

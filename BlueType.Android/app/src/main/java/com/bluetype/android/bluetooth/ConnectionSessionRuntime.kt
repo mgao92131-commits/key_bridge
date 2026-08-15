@@ -9,11 +9,11 @@ import com.bluetype.android.BuildConfig
 import com.bluetype.android.data.DeviceIdentityRepository
 import com.bluetype.android.data.DeviceType
 import com.bluetype.android.data.PersistedSession
-import com.bluetype.android.data.PreferencesRepository
 import com.bluetype.android.data.StoredDevice
 import com.bluetype.android.data.TokenCandidate
 import com.bluetype.android.data.TokenRepository
 import com.bluetype.android.data.TokenSource
+import com.bluetype.android.data.preferences.PreferenceStores
 import com.bluetype.android.domain.CommandFeedback
 import com.bluetype.android.domain.CommandFeedbackState
 import com.bluetype.android.domain.ConnectionPhase
@@ -42,7 +42,7 @@ import kotlinx.serialization.json.put
 
 internal class ConnectionSessionRuntime(
     private val appContext: android.content.Context,
-    private val preferencesRepository: PreferencesRepository,
+    private val preferenceStores: PreferenceStores,
     private val transportConnector: TransportConnector = OrchestratorTransportConnector(
         ConnectionOrchestrator(appContext),
     ),
@@ -62,9 +62,9 @@ internal class ConnectionSessionRuntime(
         scope = runtimeScope,
         postAction = { action -> commandQueue.send(action) },
     )
-    private val tokenRepository: TokenRepository = preferencesRepository
-    private val deviceIdentityRepository: DeviceIdentityRepository = preferencesRepository
-    private val persistedSessionCoordinator = PersistedSessionCoordinator(preferencesRepository)
+    private val tokenRepository: TokenRepository = preferenceStores.tokens
+    private val deviceIdentityRepository: DeviceIdentityRepository = preferenceStores.devices
+    private val persistedSessionCoordinator = PersistedSessionCoordinator(preferenceStores.sessions)
     private val commandDispatcher = ConnectionCommandDispatcher(
         stateProvider = { ConnectionUiStateStore.state.value },
         connectionProvider = { activeConnection },
@@ -134,7 +134,7 @@ internal class ConnectionSessionRuntime(
             requestManualDisconnectLocked()
             disconnectInternal(updateState = false, clearSession = false)
         }
-        preferencesRepository.clearPersistedSession()
+        preferenceStores.sessions.clearPersistedSession()
     }
 
     suspend fun disconnectIfComputer(computerId: String) {
@@ -586,7 +586,7 @@ internal class ConnectionSessionRuntime(
                 tokenRepository.clearRejectedCandidate(connection.computerId, connection.tokenCandidate)
             }
             if (action.clearPersistedSession) {
-                preferencesRepository.clearPersistedSession()
+                preferenceStores.sessions.clearPersistedSession()
             }
             sessionMutex.withLock {
                 if (!isCurrentAttemptLocked(connection.attemptId, connection.profile)) {
@@ -610,7 +610,7 @@ internal class ConnectionSessionRuntime(
         val authAction = AuthResponseHandler.commandAuthorizationError(payload)
         if (authAction != null) {
             tokenRepository.clearToken(connection.computerId)
-            preferencesRepository.clearPersistedSession()
+            preferenceStores.sessions.clearPersistedSession()
             sessionMutex.withLock {
                 if (!isCurrentAttemptLocked(connection.attemptId, connection.profile)) {
                     return
@@ -697,7 +697,7 @@ internal class ConnectionSessionRuntime(
         when (authOutcome) {
             is AuthenticationOutcome.Temporary -> {
                 if (connection.profile.persistenceIntent == ProfilePersistenceIntent.EXISTING_SAVED_COMPUTER) {
-                    preferencesRepository.clearPersistedSession()
+                    preferenceStores.sessions.clearPersistedSession()
                 }
                 Log.i(logTag, "temporary authorization computerId=${connection.computerId}")
             }
@@ -710,7 +710,7 @@ internal class ConnectionSessionRuntime(
                     manuallyDisconnected = false,
                 )
                 val saved = runCatching {
-                    preferencesRepository.persistAuthorizedComputer(
+                    preferenceStores.authorizedComputers.persistAuthorizedComputer(
                         device = device,
                         token = authOutcome.token,
                         persistedSession = session,
@@ -736,7 +736,7 @@ internal class ConnectionSessionRuntime(
                 val candidate = connection.tokenCandidate
                 val migrationCandidate = candidate?.takeIf { it.source !is TokenSource.ComputerProfile }
                 val saved = runCatching {
-                    preferencesRepository.persistAuthorizedComputer(
+                    preferenceStores.authorizedComputers.persistAuthorizedComputer(
                         device = device,
                         token = null,
                         persistedSession = session,

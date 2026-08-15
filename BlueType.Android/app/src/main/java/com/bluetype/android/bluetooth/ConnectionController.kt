@@ -1,8 +1,8 @@
 package com.bluetype.android.bluetooth
 
 import android.content.Context
-import com.bluetype.android.data.PreferencesRepository
 import com.bluetype.android.data.StoredDevice
+import com.bluetype.android.data.preferences.PreferenceStores
 import com.bluetype.android.domain.CommandFeedback
 import com.bluetype.android.domain.CommandFeedbackState
 import com.bluetype.android.domain.ConnectionState
@@ -28,8 +28,8 @@ class ConnectionController private constructor(
     }
 
     private val appContext = context.applicationContext
-    private val preferencesRepository = PreferencesRepository(appContext)
-    private val sessionRuntime = ConnectionSessionRuntime(appContext, preferencesRepository)
+    private val preferenceStores = PreferenceStores(appContext)
+    private val sessionRuntime = ConnectionSessionRuntime(appContext, preferenceStores)
 
     val state: StateFlow<ConnectionState> = ConnectionUiStateStore.state
     val uiRoute: StateFlow<UiRoute> = ConnectionUiStateStore.uiRoute
@@ -39,11 +39,11 @@ class ConnectionController private constructor(
     val lastFeedback: StateFlow<CommandFeedback?> = ConnectionUiStateStore.lastFeedback
     val remoteShortcutProfile: StateFlow<RemoteShortcutProfile?> = ConnectionUiStateStore.remoteShortcutProfile
     val connectingComputerId: StateFlow<String?> = ConnectionUiStateStore.connectingComputerId
-    val recentDevices: Flow<List<StoredDevice>> = preferencesRepository.recentDevices()
+    val recentDevices: Flow<List<StoredDevice>> = preferenceStores.devices.recentDevices()
 
     suspend fun removeRecentDevice(device: StoredDevice) {
         sessionRuntime.disconnectIfComputer(device.id)
-        preferencesRepository.removeRecentDevice(device)
+        preferenceStores.devices.removeRecentDevice(device)
     }
 
     suspend fun connect(profile: ComputerConnectionProfile) {

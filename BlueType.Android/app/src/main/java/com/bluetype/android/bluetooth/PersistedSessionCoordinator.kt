@@ -2,7 +2,6 @@ package com.bluetype.android.bluetooth
 
 import com.bluetype.android.data.PersistedSession
 import com.bluetype.android.data.PersistedSessionRepository
-import com.bluetype.android.data.PreferencesRepository
 import com.bluetype.android.data.toConnectionTarget
 import com.bluetype.android.data.StoredDevice
 import com.bluetype.android.domain.ConnectionTarget
@@ -20,12 +19,6 @@ internal class PersistedSessionCoordinator(
     private val clearPersistedSession: suspend () -> Unit,
     private val savePersistedSession: suspend (PersistedSession) -> Unit,
 ) {
-    constructor(preferencesRepository: PreferencesRepository) : this(
-        currentPersistedSession = { preferencesRepository.currentPersistedSession() },
-        clearPersistedSession = { preferencesRepository.clearPersistedSession() },
-        savePersistedSession = { session -> preferencesRepository.savePersistedSession(session) },
-    )
-
     constructor(repository: PersistedSessionRepository) : this(
         currentPersistedSession = { repository.currentPersistedSession() },
         clearPersistedSession = { repository.clearPersistedSession() },
