@@ -14,6 +14,20 @@ namespace BlueType.Agent.Tests;
 public sealed class ConnectionServerShutdownTests
 {
     [Fact]
+    public async Task StopAsync_WithoutStart_DoesNotHang()
+    {
+        using var harness = ServerHarness.Create();
+        using var server = new FakeConnectionServer(harness.Processor, acceptMode: AcceptMode.CancelableIdle);
+
+        var stopTask = server.StopAsync();
+        var completed = await Task.WhenAny(stopTask, Task.Delay(TimeSpan.FromSeconds(1)));
+
+        Assert.Same(stopTask, completed);
+        await stopTask;
+        Assert.Equal(1, server.StopListeningCallCount);
+    }
+
+    [Fact]
     public async Task StopAsync_IdleAcceptLoop_CompletesQuickly()
     {
         using var harness = ServerHarness.Create();
@@ -45,7 +59,7 @@ public sealed class ConnectionServerShutdownTests
     }
 
     [Fact]
-    public async Task StopAsync_BlockingAcceptThatIgnoresCancel_DoesNotHangForever()
+    public async Task StopAsync_BlockingAcceptThatIgnoresCancel_CompletesWithinTimeout()
     {
         using var harness = ServerHarness.Create();
         var server = new FakeConnectionServer(
@@ -92,7 +106,7 @@ public sealed class ConnectionServerShutdownTests
     }
 
     [Fact]
-    public async Task StopAsync_MultipleSessions_WaitsForAllTrackedTasks()
+    public async Task StopAsync_MultipleSessions_ClosesAllTransportClients()
     {
         using var harness = ServerHarness.Create();
         var server = new FakeConnectionServer(harness.Processor, acceptMode: AcceptMode.ThreeHangingClients);
@@ -118,6 +132,24 @@ public sealed class ConnectionServerShutdownTests
         await server.StopAsync();
         server.Dispose();
         server.Dispose();
+
+        Assert.Equal(1, server.StopListeningCallCount);
+    }
+
+    [Fact]
+    public async Task Dispose_AfterStop_DoesNotRestartShutdown()
+    {
+        using var harness = ServerHarness.Create();
+        using var server = new FakeConnectionServer(harness.Processor, acceptMode: AcceptMode.CancelableIdle);
+        server.Start();
+
+        await server.StopAsync();
+        Assert.Equal(1, server.StopListeningCallCount);
+
+        server.Dispose();
+        server.Dispose();
+
+        Assert.Equal(1, server.StopListeningCallCount);
     }
 
     private enum AcceptMode
@@ -138,6 +170,7 @@ public sealed class ConnectionServerShutdownTests
         private int _sessionsStarted;
         private int _closedClients;
         private int _acceptIndex;
+        private int _stopListeningCalls;
         private volatile bool _listeningStopped;
 
         public FakeConnectionServer(
@@ -166,6 +199,8 @@ public sealed class ConnectionServerShutdownTests
         }
 
         public bool StopListeningCalled => _listeningStopped;
+
+        public int StopListeningCallCount => Volatile.Read(ref _stopListeningCalls);
 
         public bool LastClientClosed => Volatile.Read(ref _closedClients) > 0;
 
@@ -296,6 +331,7 @@ public sealed class ConnectionServerShutdownTests
 
         protected override void StopListening()
         {
+            Interlocked.Increment(ref _stopListeningCalls);
             _listeningStopped = true;
         }
 
