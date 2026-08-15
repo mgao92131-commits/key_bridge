@@ -3,6 +3,7 @@ package com.bluetype.android.bluetooth
 import com.bluetype.android.domain.CommandFeedback
 import com.bluetype.android.domain.CommandFeedbackState
 import com.bluetype.android.domain.ConnectionState
+import com.bluetype.android.protocol.*
 import kotlinx.coroutines.CompletableDeferred
 import java.util.UUID
 import kotlinx.coroutines.channels.ClosedSendChannelException

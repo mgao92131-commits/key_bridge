@@ -1,6 +1,7 @@
 package com.bluetype.android.bluetooth
 
 import com.bluetype.android.domain.ConnectionTarget
+import com.bluetype.android.protocol.*
 
 internal object AuthResponseHandler {
     fun pendingApproval(

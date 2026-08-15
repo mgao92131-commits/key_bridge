@@ -1,5 +1,6 @@
 package com.bluetype.android.bluetooth
 
+import com.bluetype.android.protocol.*
 import com.bluetype.android.domain.ConnectionState
 import com.bluetype.android.domain.ConnectionTarget
 import kotlinx.serialization.json.buildJsonObject

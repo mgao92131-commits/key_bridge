@@ -1,6 +1,7 @@
 package com.bluetype.android.bluetooth
 
 import com.bluetype.android.domain.RemoteAction
+import com.bluetype.android.protocol.*
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject

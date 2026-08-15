@@ -1,6 +1,7 @@
 package com.bluetype.android.bluetooth
 
 import com.bluetype.android.transport.SessionClient
+import com.bluetype.android.protocol.*
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

@@ -1,4 +1,4 @@
-package com.bluetype.android.bluetooth
+package com.bluetype.android.protocol
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement

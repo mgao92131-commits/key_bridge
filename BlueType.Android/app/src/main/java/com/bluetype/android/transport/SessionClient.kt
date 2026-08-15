@@ -1,9 +1,7 @@
 package com.bluetype.android.transport
 
 import android.util.Log
-import com.bluetype.android.bluetooth.Envelope
-import com.bluetype.android.bluetooth.MsgType
-import com.bluetype.android.bluetooth.ProtocolJson
+import com.bluetype.android.protocol.*
 import java.io.InputStream
 import java.io.OutputStream
 import java.util.UUID
