@@ -11,8 +11,8 @@ namespace BlueType.Agent.Application.Sessions;
 internal sealed class SessionProcessor
 {
     private readonly CommandRouter _commandRouter;
-    private readonly SessionHandshake _handshake;
     private readonly SessionHeartbeat _heartbeat;
+    private readonly SessionCommandLoop _commandLoop;
     private readonly ActiveSessionManager _activeSessionManager;
     private readonly SessionCleanup _cleanup;
 
@@ -63,8 +63,9 @@ internal sealed class SessionProcessor
     {
         _commandRouter = commandRouter;
         var helloHandler = new SessionHelloHandler(commandRouter, authService, activeSessionManager, promptAsync);
-        _handshake = new SessionHandshake(helloHandler, shortcutProfiles);
+        var handshake = new SessionHandshake(helloHandler, shortcutProfiles);
         _heartbeat = heartbeat;
+        _commandLoop = new SessionCommandLoop(commandRouter, heartbeat, handshake);
         _activeSessionManager = activeSessionManager;
         _cleanup = new SessionCleanup(activeSessionManager, shortcutProfiles, inputRelease);
     }
@@ -137,73 +138,11 @@ internal sealed class SessionProcessor
 
         try
         {
-            while (!sessionToken.IsCancellationRequested)
-            {
-                var envelope = await context.Session.ReadAsync(sessionToken);
-                if (envelope is null)
-                {
-                    break;
-                }
-
-                Volatile.Write(ref lastInboundAt, Environment.TickCount64);
-
-                if (await _heartbeat.TryHandleInboundAsync(context.Session, envelope, sessionToken))
-                {
-                    continue;
-                }
-
-                var handshakeResult = await _handshake.TryHandleAsync(
-                    context.Session,
-                    envelope,
-                    lifecycle,
-                    context.RemoteAddress,
-                    context.Transport,
-                    context.OnState,
-                    context.OnMessage,
-                    context.SessionId,
-                    context.DisconnectCurrentSession,
-                    sessionToken);
-                if (handshakeResult == HandshakeResult.Continue)
-                {
-                    continue;
-                }
-
-                if (handshakeResult == HandshakeResult.Terminate)
-                {
-                    break;
-                }
-
-                Envelope response;
-                var lifecycleError = lifecycle.ValidateCommandEnvelope(envelope);
-                if (lifecycleError is not null)
-                {
-                    response = lifecycleError;
-                    await context.Session.WriteAsync(response, sessionToken);
-                    if (string.Equals(response.Type, Responses.Error, StringComparison.Ordinal) &&
-                        response.Payload.TryGetProperty("code", out var code) &&
-                        string.Equals(code.GetString(), "SESSION_REPLACED", StringComparison.Ordinal))
-                    {
-                        break;
-                    }
-                }
-                else
-                {
-                    try
-                    {
-                        response = await _commandRouter.RouteAsync(envelope, sessionToken);
-                    }
-                    catch (Exception ex)
-                    {
-                        AppLogger.Error($"Failed to route {context.Transport} command {envelope.Type}.", ex);
-                        response = _commandRouter.CreateError(envelope.Id, "SERVER_ERROR", ex.Message);
-                    }
-                }
-
-                if (lifecycleError is null)
-                {
-                    await context.Session.WriteAsync(response, sessionToken);
-                }
-            }
+            await _commandLoop.RunAsync(
+                context,
+                lifecycle,
+                sessionLifetime,
+                () => Volatile.Write(ref lastInboundAt, Environment.TickCount64));
         }
         catch (OperationCanceledException) when (sessionLifetime.IsCancellationRequested)
         {
