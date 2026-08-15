@@ -7,16 +7,16 @@ namespace BlueType.Agent.Application.Sessions;
 
 internal sealed class SessionCommandLoop
 {
-    private readonly CommandRouter _commandRouter;
+    private readonly CommandDispatcher _commandDispatcher;
     private readonly SessionHeartbeat _heartbeat;
     private readonly SessionHandshake _handshake;
 
     public SessionCommandLoop(
-        CommandRouter commandRouter,
+        CommandDispatcher commandDispatcher,
         SessionHeartbeat heartbeat,
         SessionHandshake handshake)
     {
-        _commandRouter = commandRouter;
+        _commandDispatcher = commandDispatcher;
         _heartbeat = heartbeat;
         _handshake = handshake;
     }
@@ -80,12 +80,12 @@ internal sealed class SessionCommandLoop
             {
                 try
                 {
-                    response = await _commandRouter.RouteAsync(envelope, cancellationToken);
+                    response = await _commandDispatcher.DispatchAsync(envelope, cancellationToken);
                 }
                 catch (Exception ex)
                 {
                     AppLogger.Error($"Failed to route {context.Transport} command {envelope.Type}.", ex);
-                    response = _commandRouter.CreateError(envelope.Id, "SERVER_ERROR", ex.Message);
+                    response = _commandDispatcher.CreateError(envelope.Id, "SERVER_ERROR", ex.Message);
                 }
             }
 

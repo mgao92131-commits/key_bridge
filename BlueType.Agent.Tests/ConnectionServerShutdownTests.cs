@@ -498,8 +498,8 @@ public sealed class ConnectionServerShutdownTests
         {
             var registry = new DeviceRegistry(_sandbox.SettingsFilePath);
             var authService = new AuthService(registry, prompt);
-            var router = new CommandRouter(_inputInjector, _clipboardService);
-            Processor = new SessionCoordinator(router, authService, _inputInjector);
+            var dispatcher = CommandDispatcherTestFactory.Create(_inputInjector, _clipboardService);
+            Processor = new SessionCoordinator(dispatcher, authService, _inputInjector);
         }
 
         public static ServerHarness Create()

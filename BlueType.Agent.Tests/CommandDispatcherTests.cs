@@ -6,22 +6,22 @@ using BlueType.Protocol;
 
 namespace BlueType.Agent.Tests;
 
-public sealed class CommandRouterTests
+public sealed class CommandDispatcherTests
 {
     [Fact]
-    public async Task RouteAsync_ReturnsPong_WhenPingReceived()
+    public async Task DispatchAsync_ReturnsPong_WhenPingReceived()
     {
         using var harness = new CommandHarness();
         var envelope = JsonProtocol.CreateEnvelope("ping-2", Commands.Ping, new { });
 
-        var response = await harness.Router.RouteAsync(envelope, CancellationToken.None);
+        var response = await harness.Dispatcher.DispatchAsync(envelope, CancellationToken.None);
 
         Assert.Equal(Commands.Pong, response.Type);
         Assert.True(EnvelopeTestReader.GetBoolean(response, "ok"));
     }
 
     [Fact]
-    public async Task RouteAsync_ReturnsAck_WhenKeyboardCommandIsReceived()
+    public async Task DispatchAsync_ReturnsAck_WhenKeyboardCommandIsReceived()
     {
         using var harness = new CommandHarness();
         var envelope = JsonProtocol.CreateEnvelope(
@@ -29,14 +29,14 @@ public sealed class CommandRouterTests
             Commands.TextInsert,
             new { text = string.Empty });
 
-        var response = await harness.Router.RouteAsync(envelope, CancellationToken.None);
+        var response = await harness.Dispatcher.DispatchAsync(envelope, CancellationToken.None);
 
         Assert.Equal(Responses.Ack, response.Type);
         Assert.Equal(envelope.Id, response.Id);
     }
 
     [Fact]
-    public async Task RouteAsync_ReturnsAck_WhenMouseCommandIsReceived()
+    public async Task DispatchAsync_ReturnsAck_WhenMouseCommandIsReceived()
     {
         using var harness = new CommandHarness();
         var envelope = JsonProtocol.CreateEnvelope(
@@ -44,14 +44,14 @@ public sealed class CommandRouterTests
             Commands.MouseMove,
             new { dx = 0, dy = 0 });
 
-        var response = await harness.Router.RouteAsync(envelope, CancellationToken.None);
+        var response = await harness.Dispatcher.DispatchAsync(envelope, CancellationToken.None);
 
         Assert.Equal(Responses.Ack, response.Type);
         Assert.Equal(envelope.Id, response.Id);
     }
 
     [Fact]
-    public async Task RouteAsync_ReturnsAck_WhenClipboardCommandIsReceived()
+    public async Task DispatchAsync_ReturnsAck_WhenClipboardCommandIsReceived()
     {
         using var harness = new CommandHarness();
         var envelope = JsonProtocol.CreateEnvelope(
@@ -59,32 +59,32 @@ public sealed class CommandRouterTests
             Commands.ClipboardSet,
             new { text = "   " });
 
-        var response = await harness.Router.RouteAsync(envelope, CancellationToken.None);
+        var response = await harness.Dispatcher.DispatchAsync(envelope, CancellationToken.None);
 
         Assert.Equal(Responses.Ack, response.Type);
         Assert.Equal(envelope.Id, response.Id);
     }
 
     [Fact]
-    public async Task RouteAsync_ReturnsInvalidPayloadError_WhenCommandIsUnknown()
+    public async Task DispatchAsync_ReturnsInvalidPayloadError_WhenCommandIsUnknown()
     {
         using var harness = new CommandHarness();
         var envelope = JsonProtocol.CreateEnvelope("unknown-1", "unknown_type", new { });
 
-        var response = await harness.Router.RouteAsync(envelope, CancellationToken.None);
+        var response = await harness.Dispatcher.DispatchAsync(envelope, CancellationToken.None);
 
         Assert.Equal(Responses.Error, response.Type);
         Assert.Equal("INVALID_PAYLOAD", EnvelopeTestReader.GetString(response, "code"));
     }
 
     [Fact]
-    public async Task RouteAsync_ReturnsInvalidPayloadError_WhenTextInsertExceedsLimit()
+    public async Task DispatchAsync_ReturnsInvalidPayloadError_WhenTextInsertExceedsLimit()
     {
         using var harness = new CommandHarness();
         var oversizedText = new string('A', 9000);
         var envelope = JsonProtocol.CreateEnvelope("text-oversized", Commands.TextInsert, new { text = oversizedText });
 
-        var response = await harness.Router.RouteAsync(envelope, CancellationToken.None);
+        var response = await harness.Dispatcher.DispatchAsync(envelope, CancellationToken.None);
 
         Assert.Equal(Responses.Error, response.Type);
         Assert.Equal("INVALID_PAYLOAD", EnvelopeTestReader.GetString(response, "code"));
@@ -92,7 +92,7 @@ public sealed class CommandRouterTests
     }
 
     [Fact]
-    public async Task RouteAsync_PropagatesHandlerException_WhenHandlerFails()
+    public async Task DispatchAsync_PropagatesHandlerException_WhenHandlerFails()
     {
         using var harness = new CommandHarness();
         var envelope = JsonProtocol.CreateEnvelope(
@@ -101,13 +101,13 @@ public sealed class CommandRouterTests
             new { button = "LEFT", action = "sideways" });
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => harness.Router.RouteAsync(envelope, CancellationToken.None));
+            () => harness.Dispatcher.DispatchAsync(envelope, CancellationToken.None));
 
         Assert.Contains("Unsupported mouse button action", exception.Message);
     }
 
     [Fact]
-    public async Task RouteAsync_PropagatesCancellationToken_ToHandler()
+    public async Task DispatchAsync_PropagatesCancellationToken_ToHandler()
     {
         using var harness = new CommandHarness();
         using var cancellation = new CancellationTokenSource();
@@ -118,7 +118,7 @@ public sealed class CommandRouterTests
             new { text = "A" });
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
-            () => harness.Router.RouteAsync(envelope, cancellation.Token));
+            () => harness.Dispatcher.DispatchAsync(envelope, cancellation.Token));
     }
 
     private sealed class CommandHarness : IDisposable
@@ -126,11 +126,11 @@ public sealed class CommandRouterTests
         private readonly InputInjector _inputInjector = new();
         private readonly ClipboardService _clipboardService = new();
 
-        public CommandRouter Router { get; }
+        public CommandDispatcher Dispatcher { get; }
 
         public CommandHarness()
         {
-            Router = new CommandRouter(_inputInjector, _clipboardService);
+            Dispatcher = CommandDispatcherTestFactory.Create(_inputInjector, _clipboardService);
         }
 
         public void Dispose()

@@ -360,9 +360,9 @@ public sealed class SessionCoordinatorTests
             ActiveSessions = activeSessions ?? new ActiveSessionManager();
             ShortcutProfiles = shortcutProfiles ?? new RecordingShortcutProfileDispatcher();
             InputRelease = inputRelease ?? new RecordingInputRelease();
-            Router = new CommandRouter(_inputInjector, _clipboardService);
-        Processor = new SessionCoordinator(
-                Router,
+            Dispatcher = CommandDispatcherTestFactory.Create(_inputInjector, _clipboardService);
+            Processor = new SessionCoordinator(
+                Dispatcher,
                 AuthService,
                 _inputInjector,
                 ActiveSessions,
@@ -374,7 +374,7 @@ public sealed class SessionCoordinatorTests
 
         public Stream Stream { get; }
 
-        public CommandRouter Router { get; }
+        public CommandDispatcher Dispatcher { get; }
 
         public AuthService AuthService { get; }
 

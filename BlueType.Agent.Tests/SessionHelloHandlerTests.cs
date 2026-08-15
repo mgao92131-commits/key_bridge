@@ -18,7 +18,7 @@ public sealed class SessionHelloHandlerTests
     {
         using var harness = new CommandHarness();
         var authService = new AuthService(new DeviceRegistry(), (_, _) => Task.FromResult(AuthPromptDecision.AllowOnce));
-        var handler = new SessionHelloHandler(harness.Router, authService);
+        var handler = new SessionHelloHandler(harness.Dispatcher, authService);
         await using var session = harness.CreateSession();
 
         var envelope = JsonProtocol.CreateEnvelope(
@@ -45,7 +45,7 @@ public sealed class SessionHelloHandlerTests
         var states = new List<ConnectionState>();
         var messages = new List<string>();
         var authService = new AuthService(new DeviceRegistry(), (_, _) => Task.FromResult(AuthPromptDecision.AllowOnce));
-        var handler = new SessionHelloHandler(harness.Router, authService);
+        var handler = new SessionHelloHandler(harness.Dispatcher, authService);
         await using var session = harness.CreateSession();
 
         var envelope = JsonProtocol.CreateEnvelope(
@@ -91,7 +91,7 @@ public sealed class SessionHelloHandlerTests
 
         public MemoryStream Stream { get; } = new();
 
-        public CommandRouter Router => new(_inputInjector, _clipboardService);
+        public CommandDispatcher Dispatcher => CommandDispatcherTestFactory.Create(_inputInjector, _clipboardService);
 
         public ClientSession CreateSession()
         {

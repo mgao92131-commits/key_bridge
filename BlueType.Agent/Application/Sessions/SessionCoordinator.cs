@@ -10,18 +10,18 @@ namespace BlueType.Agent.Application.Sessions;
 
 internal sealed class SessionCoordinator
 {
-    private readonly CommandRouter _commandRouter;
+    private readonly CommandDispatcher _commandDispatcher;
     private readonly SessionHeartbeat _heartbeat;
     private readonly SessionCommandLoop _commandLoop;
     private readonly ActiveSessionManager _activeSessionManager;
     private readonly SessionCleanup _cleanup;
 
     public SessionCoordinator(
-        CommandRouter commandRouter,
+        CommandDispatcher commandDispatcher,
         AuthService authService,
         InputInjector inputInjector)
         : this(
-            commandRouter,
+            commandDispatcher,
             authService,
             inputInjector,
             new ActiveSessionManager(),
@@ -33,14 +33,14 @@ internal sealed class SessionCoordinator
     }
 
     public SessionCoordinator(
-        CommandRouter commandRouter,
+        CommandDispatcher commandDispatcher,
         AuthService authService,
         InputInjector inputInjector,
         ActiveSessionManager activeSessionManager,
         IShortcutProfileDispatcher shortcutProfiles,
         Func<AuthPromptRequest, CancellationToken, Task<AuthPromptDecision>> promptAsync)
         : this(
-            commandRouter,
+            commandDispatcher,
             authService,
             inputInjector,
             activeSessionManager,
@@ -52,7 +52,7 @@ internal sealed class SessionCoordinator
     }
 
     internal SessionCoordinator(
-        CommandRouter commandRouter,
+        CommandDispatcher commandDispatcher,
         AuthService authService,
         InputInjector inputInjector,
         ActiveSessionManager activeSessionManager,
@@ -61,11 +61,11 @@ internal sealed class SessionCoordinator
         IInputRelease inputRelease,
         SessionHeartbeat heartbeat)
     {
-        _commandRouter = commandRouter;
-        var helloHandler = new SessionHelloHandler(commandRouter, authService, activeSessionManager, promptAsync);
+        _commandDispatcher = commandDispatcher;
+        var helloHandler = new SessionHelloHandler(commandDispatcher, authService, activeSessionManager, promptAsync);
         var handshake = new SessionHandshake(helloHandler, shortcutProfiles);
         _heartbeat = heartbeat;
-        _commandLoop = new SessionCommandLoop(commandRouter, heartbeat, handshake);
+        _commandLoop = new SessionCommandLoop(commandDispatcher, heartbeat, handshake);
         _activeSessionManager = activeSessionManager;
         _cleanup = new SessionCleanup(activeSessionManager, shortcutProfiles, inputRelease);
     }
@@ -92,7 +92,7 @@ internal sealed class SessionCoordinator
 
     public async Task RejectBusyClientAsync(ClientSession session, CancellationToken cancellationToken)
     {
-        await session.WriteAsync(_commandRouter.CreateError("busy", "BUSY", "Another device is already connected."), cancellationToken);
+        await session.WriteAsync(_commandDispatcher.CreateError("busy", "BUSY", "Another device is already connected."), cancellationToken);
     }
 
     public async Task RunAsync(
@@ -121,7 +121,7 @@ internal sealed class SessionCoordinator
         SessionExecutionContext context,
         CancellationToken cancellationToken)
     {
-        var lifecycle = new SessionLifecycle(_commandRouter, _activeSessionManager, context.SessionId);
+        var lifecycle = new SessionLifecycle(_commandDispatcher, _activeSessionManager, context.SessionId);
         long lastInboundAt = Environment.TickCount64;
         using var sessionLifetime = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var sessionToken = sessionLifetime.Token;

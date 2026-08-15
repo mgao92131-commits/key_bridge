@@ -13,7 +13,7 @@ public sealed class SessionLifecycleTests
     public void ValidateCommandEnvelope_ReturnsNotAuthorizedBeforeHelloCompletes()
     {
         using var harness = new CommandHarness();
-        var lifecycle = new SessionLifecycle(harness.Router, new ActiveSessionManager(), Guid.NewGuid());
+        var lifecycle = new SessionLifecycle(harness.Dispatcher, new ActiveSessionManager(), Guid.NewGuid());
         var envelope = JsonProtocol.CreateEnvelope("key-1", Commands.KeyTap, new { key = "ENTER" });
 
         var error = lifecycle.ValidateCommandEnvelope(envelope);
@@ -27,7 +27,7 @@ public sealed class SessionLifecycleTests
     public void ValidateCommandEnvelope_ReturnsSessionReplacedWhenSessionIsNoLongerActive()
     {
         using var harness = new CommandHarness();
-        var lifecycle = new SessionLifecycle(harness.Router, new ActiveSessionManager(), Guid.NewGuid());
+        var lifecycle = new SessionLifecycle(harness.Dispatcher, new ActiveSessionManager(), Guid.NewGuid());
         lifecycle.MarkAuthorized();
         var envelope = JsonProtocol.CreateEnvelope("key-2", Commands.KeyTap, new { key = "ENTER" });
 
@@ -42,7 +42,7 @@ public sealed class SessionLifecycleTests
     public void CreateDuplicateHelloError_ReturnsInvalidPayload()
     {
         using var harness = new CommandHarness();
-        var lifecycle = new SessionLifecycle(harness.Router, new ActiveSessionManager(), Guid.NewGuid());
+        var lifecycle = new SessionLifecycle(harness.Dispatcher, new ActiveSessionManager(), Guid.NewGuid());
 
         var error = lifecycle.CreateDuplicateHelloError("hello-2");
 
@@ -57,11 +57,11 @@ public sealed class SessionLifecycleTests
         private readonly InputInjector _inputInjector = new();
         private readonly ClipboardService _clipboardService = new();
 
-        public CommandRouter Router { get; }
+        public CommandDispatcher Dispatcher { get; }
 
         public CommandHarness()
         {
-            Router = new CommandRouter(_inputInjector, _clipboardService);
+            Dispatcher = CommandDispatcherTestFactory.Create(_inputInjector, _clipboardService);
         }
 
         public void Dispose()

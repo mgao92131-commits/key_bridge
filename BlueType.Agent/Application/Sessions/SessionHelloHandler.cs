@@ -12,14 +12,14 @@ internal sealed class SessionHelloHandler
 {
     private static readonly TimeSpan ApprovalTimeout = TimeSpan.FromSeconds(60);
 
-    private readonly CommandRouter _commandRouter;
+    private readonly CommandDispatcher _commandDispatcher;
     private readonly AuthService _authService;
     private readonly ActiveSessionManager _activeSessionManager;
     private readonly Func<AuthPromptRequest, CancellationToken, Task<AuthPromptDecision>> _promptAsync;
 
-    public SessionHelloHandler(CommandRouter commandRouter, AuthService authService)
+    public SessionHelloHandler(CommandDispatcher commandDispatcher, AuthService authService)
         : this(
-            commandRouter,
+            commandDispatcher,
             authService,
             new ActiveSessionManager(),
             (_, _) => Task.FromResult(AuthPromptDecision.Deny))
@@ -27,12 +27,12 @@ internal sealed class SessionHelloHandler
     }
 
     public SessionHelloHandler(
-        CommandRouter commandRouter,
+        CommandDispatcher commandDispatcher,
         AuthService authService,
         ActiveSessionManager activeSessionManager,
         Func<AuthPromptRequest, CancellationToken, Task<AuthPromptDecision>> promptAsync)
     {
-        _commandRouter = commandRouter;
+        _commandDispatcher = commandDispatcher;
         _authService = authService;
         _activeSessionManager = activeSessionManager;
         _promptAsync = promptAsync;
@@ -68,7 +68,7 @@ internal sealed class SessionHelloHandler
         }
         catch (Exception ex)
         {
-            var invalidHello = _commandRouter.CreateError(envelope.Id, "INVALID_PAYLOAD", ex.Message);
+            var invalidHello = _commandDispatcher.CreateError(envelope.Id, "INVALID_PAYLOAD", ex.Message);
             await session.WriteAsync(invalidHello, cancellationToken);
             return false;
         }
@@ -109,7 +109,7 @@ internal sealed class SessionHelloHandler
 
         if (!authResult.IsAuthorized)
         {
-            var error = _commandRouter.CreateError(
+            var error = _commandDispatcher.CreateError(
                 envelope.Id,
                 authResult.ErrorCode ?? "NOT_AUTHORIZED",
                 authResult.ErrorMessage ?? "Authorization failed.");
@@ -132,7 +132,7 @@ internal sealed class SessionHelloHandler
         if (!activationResult.IsActivated)
         {
             var active = activationResult.ReplacedSession;
-            var error = _commandRouter.CreateError(
+            var error = _commandDispatcher.CreateError(
                 envelope.Id,
                 "BUSY",
                 active is null

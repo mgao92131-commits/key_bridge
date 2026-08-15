@@ -21,11 +21,17 @@ internal static class AgentCompositionRoot
         var shortcutProfiles = new ShortcutProfileDispatcher();
 
         var deviceRegistry = new DeviceRegistry();
-        var commandRouter = new CommandRouter(inputInjector, clipboardService);
+        var commandHandlers = new ICommandHandler[]
+        {
+            new KeyboardCommandHandler(inputInjector),
+            new MouseCommandHandler(inputInjector),
+            new ClipboardCommandHandler(clipboardService),
+        };
+        var commandDispatcher = new CommandDispatcher(commandHandlers);
         var authService = new AuthService(deviceRegistry, promptForAuthorizationAsync);
         var activeSessionManager = new ActiveSessionManager();
         var sessionCoordinator = new SessionCoordinator(
-            commandRouter,
+            commandDispatcher,
             authService,
             inputInjector,
             activeSessionManager,
