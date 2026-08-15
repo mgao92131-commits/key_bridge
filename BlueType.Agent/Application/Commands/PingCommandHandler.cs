@@ -1,6 +1,7 @@
 using BlueType.Agent.Infrastructure.Logging;
 using BlueType.Protocol;
 using ProtocolCommands = BlueType.Protocol.Commands;
+using ProtocolResponses = BlueType.Protocol.Responses;
 
 namespace BlueType.Agent.Application.Commands;
 
@@ -14,6 +15,6 @@ internal sealed class PingCommandHandler : ICommandHandler
     {
         AppLogger.Info("Handled command: ping.");
         return Task.FromResult(
-            JsonProtocol.CreateEnvelope(envelope.Id, ProtocolCommands.Pong, new { ok = true }));
+            JsonProtocol.CreateEnvelope(envelope.Id, ProtocolResponses.Pong, new { ok = true }));
     }
 }

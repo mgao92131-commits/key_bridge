@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.Json;
 using BlueType.Protocol;
 
@@ -5,43 +6,6 @@ namespace BlueType.Agent.Tests;
 
 public sealed class ProtocolExamplesTests
 {
-    private static readonly HashSet<string> KnownTypes = new(StringComparer.Ordinal)
-    {
-        Commands.Hello,
-        Commands.TextInsert,
-        Commands.KeyTap,
-        Commands.KeyDown,
-        Commands.KeyUp,
-        Commands.Combo,
-        Commands.MouseMove,
-        Commands.MouseButton,
-        Commands.MouseClick,
-        Commands.MouseScroll,
-        Commands.ClipboardSet,
-        Commands.ClipboardGet,
-        Commands.Ping,
-        Commands.Pong,
-        Responses.Ack,
-        Responses.Error,
-        Responses.AuthPending,
-        Responses.AuthResult,
-        Responses.ClipboardValue,
-        Responses.ShortcutProfile,
-    };
-
-    private static readonly HashSet<string> KnownErrorCodes = new(StringComparer.Ordinal)
-    {
-        "BUSY",
-        "NOT_AUTHORIZED",
-        "AUTH_TIMEOUT",
-        "AUTH_UI_UNAVAILABLE",
-        "INVALID_PAYLOAD",
-        "SERVER_ERROR",
-        "SESSION_REPLACED",
-        "INPUT_BLOCKED",
-        "CLIPBOARD_FAILED",
-    };
-
     public static IEnumerable<object[]> ExampleFiles()
     {
         foreach (var path in Directory.EnumerateFiles(FindExamplesDirectory(), "*.json").OrderBy(Path.GetFileName))
@@ -54,13 +18,16 @@ public sealed class ProtocolExamplesTests
     [MemberData(nameof(ExampleFiles))]
     public async Task ProtocolExample_DecodesAndRoundTripsThroughFrameCodec(string path)
     {
+        var manifest = await LoadManifestAsync();
+        var knownTypes = manifest.Commands.Concat(manifest.Responses).ToHashSet(StringComparer.Ordinal);
+        var knownErrorCodes = manifest.ErrorCodes.ToHashSet(StringComparer.Ordinal);
         var json = await File.ReadAllTextAsync(path);
         var envelope = JsonSerializer.Deserialize<Envelope>(json, JsonProtocol.SerializerOptions);
 
         Assert.NotNull(envelope);
-        Assert.Equal(1, envelope.V);
+        Assert.Equal(manifest.Version, envelope.V);
         Assert.False(string.IsNullOrWhiteSpace(envelope.Id));
-        Assert.Contains(envelope.Type, KnownTypes);
+        Assert.Contains(envelope.Type, knownTypes);
         Assert.Equal(JsonValueKind.Object, envelope.Payload.ValueKind);
 
         if (string.Equals(envelope.Type, Responses.Error, StringComparison.Ordinal))
@@ -69,7 +36,7 @@ public sealed class ProtocolExamplesTests
             Assert.Equal(JsonValueKind.String, code.ValueKind);
             var errorCode = code.GetString();
             Assert.NotNull(errorCode);
-            Assert.Contains(errorCode, KnownErrorCodes);
+            Assert.Contains(errorCode, knownErrorCodes);
         }
 
         using var stream = new MemoryStream();
@@ -84,9 +51,7 @@ public sealed class ProtocolExamplesTests
     [Fact]
     public async Task ProtocolManifest_RequiresFixtureCoverageForEveryMessageTypeAndErrorCode()
     {
-        var manifest = Assert.IsType<ProtocolManifest>(JsonSerializer.Deserialize<ProtocolManifest>(
-            await File.ReadAllTextAsync(Path.Combine(FindSpecDirectory(), "protocol-v1.json")),
-            JsonProtocol.SerializerOptions));
+        var manifest = await LoadManifestAsync();
         var expectedTypes = manifest.Commands.Concat(manifest.Responses).ToHashSet(StringComparer.Ordinal);
         var coveredTypes = new HashSet<string>(StringComparer.Ordinal);
         var coveredErrorCodes = new HashSet<string>(StringComparer.Ordinal);
@@ -119,11 +84,42 @@ public sealed class ProtocolExamplesTests
         }
     }
 
+    [Fact]
+    public async Task CSharpProtocolConstants_MatchProtocolManifest()
+    {
+        var manifest = await LoadManifestAsync();
+
+        Assert.Equal(
+            manifest.Commands.OrderBy(value => value, StringComparer.Ordinal),
+            GetProtocolConstants(typeof(Commands)));
+        Assert.Equal(
+            manifest.Responses.OrderBy(value => value, StringComparer.Ordinal),
+            GetProtocolConstants(typeof(Responses)));
+    }
+
     private sealed record ProtocolManifest(
         int Version,
         string[] Commands,
         string[] Responses,
         string[] ErrorCodes);
+
+    private static async Task<ProtocolManifest> LoadManifestAsync()
+    {
+        var manifest = JsonSerializer.Deserialize<ProtocolManifest>(
+            await File.ReadAllTextAsync(Path.Combine(FindSpecDirectory(), "protocol-v1.json")),
+            JsonProtocol.SerializerOptions);
+        return Assert.IsType<ProtocolManifest>(manifest);
+    }
+
+    private static string[] GetProtocolConstants(Type constantsType)
+    {
+        return constantsType
+            .GetFields(BindingFlags.Public | BindingFlags.Static)
+            .Where(field => field.IsLiteral && !field.IsInitOnly && field.FieldType == typeof(string))
+            .Select(field => (string)field.GetRawConstantValue()!)
+            .OrderBy(value => value, StringComparer.Ordinal)
+            .ToArray();
+    }
 
     private static string FindExamplesDirectory()
     {

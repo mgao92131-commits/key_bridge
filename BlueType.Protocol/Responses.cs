@@ -2,6 +2,7 @@ namespace BlueType.Protocol;
 
 public static class Responses
 {
+    public const string Pong = "pong";
     public const string Ack = "ack";
     public const string Error = "error";
     public const string AuthPending = "auth_pending";

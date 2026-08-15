@@ -30,7 +30,7 @@ internal sealed class SessionHeartbeat
             return true;
         }
 
-        return string.Equals(envelope.Type, BlueType.Protocol.Commands.Pong, StringComparison.Ordinal);
+        return string.Equals(envelope.Type, BlueType.Protocol.Responses.Pong, StringComparison.Ordinal);
     }
 
     public async Task RunAsync(
@@ -84,6 +84,6 @@ internal sealed class SessionHeartbeat
 
     private static Envelope CreatePongEnvelope(string requestId)
     {
-        return JsonProtocol.CreateEnvelope(requestId, BlueType.Protocol.Commands.Pong, new { });
+        return JsonProtocol.CreateEnvelope(requestId, BlueType.Protocol.Responses.Pong, new { });
     }
 }

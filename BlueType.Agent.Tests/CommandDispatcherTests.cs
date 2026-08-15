@@ -16,7 +16,7 @@ public sealed class CommandDispatcherTests
 
         var response = await harness.Dispatcher.DispatchAsync(envelope, CancellationToken.None);
 
-        Assert.Equal(Commands.Pong, response.Type);
+        Assert.Equal(Responses.Pong, response.Type);
         Assert.True(EnvelopeTestReader.GetBoolean(response, "ok"));
     }
 

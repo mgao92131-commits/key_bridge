@@ -15,5 +15,4 @@ public static class Commands
     public const string ClipboardSet = "clipboard_set";
     public const string ClipboardGet = "clipboard_get";
     public const string Ping = "ping";
-    public const string Pong = "pong";
 }

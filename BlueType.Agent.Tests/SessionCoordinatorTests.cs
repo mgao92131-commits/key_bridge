@@ -163,7 +163,7 @@ public sealed class SessionCoordinatorTests
         var responses = await EnvelopeTestReader.ReadAllAsync(harness.GetWrittenBytes());
 
         Assert.Single(responses);
-        Assert.Equal(Commands.Pong, responses[0].Type);
+        Assert.Equal(Responses.Pong, responses[0].Type);
         Assert.Equal("ping-1", responses[0].Id);
     }
 
