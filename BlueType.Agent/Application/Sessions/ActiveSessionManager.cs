@@ -1,7 +1,7 @@
 using System.Threading;
 using BlueType.Agent.Models;
 
-namespace BlueType.Agent.Core;
+namespace BlueType.Agent.Application.Sessions;
 
 internal sealed class ActiveSessionManager
 {

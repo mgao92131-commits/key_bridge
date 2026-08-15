@@ -1,7 +1,7 @@
 using BlueType.Protocol;
 using BlueType.Agent.Application.Commands;
 
-namespace BlueType.Agent.Core;
+namespace BlueType.Agent.Application.Sessions;
 
 internal sealed class SessionLifecycle
 {

@@ -6,7 +6,7 @@ using BlueType.Agent.Infrastructure.Logging;
 using BlueType.Agent.Transport;
 using BlueType.Protocol;
 
-namespace BlueType.Agent.Core;
+namespace BlueType.Agent.Application.Sessions;
 
 internal sealed class SessionProcessor
 {
@@ -105,7 +105,7 @@ internal sealed class SessionProcessor
                     continue;
                 }
 
-                if (string.Equals(envelope.Type, Commands.Hello, StringComparison.Ordinal))
+                if (string.Equals(envelope.Type, BlueType.Protocol.Commands.Hello, StringComparison.Ordinal))
                 {
                     if (lifecycle.IsAuthorized)
                     {

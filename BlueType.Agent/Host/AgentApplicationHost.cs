@@ -8,6 +8,7 @@ using BlueType.Agent.Infrastructure.Clipboard;
 using BlueType.Agent.Infrastructure.Input;
 using BlueType.Agent.Infrastructure.Logging;
 using BlueType.Agent.Models;
+using BlueType.Agent.Application.Sessions;
 using BlueType.Agent.Network;
 
 namespace BlueType.Agent.Host;

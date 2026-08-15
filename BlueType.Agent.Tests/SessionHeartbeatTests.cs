@@ -1,4 +1,5 @@
 using BlueType.Agent.Core;
+using BlueType.Agent.Application.Sessions;
 using BlueType.Agent.Tests.TestHelpers;
 using BlueType.Agent.Transport;
 using BlueType.Protocol;

@@ -2,7 +2,7 @@ using BlueType.Agent.Transport;
 using BlueType.Agent.Infrastructure.Logging;
 using BlueType.Protocol;
 
-namespace BlueType.Agent.Core;
+namespace BlueType.Agent.Application.Sessions;
 
 internal sealed class SessionHeartbeat
 {
@@ -11,13 +11,13 @@ internal sealed class SessionHeartbeat
 
     public async Task<bool> TryHandleInboundAsync(ClientSession session, Envelope envelope, CancellationToken cancellationToken)
     {
-        if (string.Equals(envelope.Type, Commands.Ping, StringComparison.Ordinal))
+        if (string.Equals(envelope.Type, BlueType.Protocol.Commands.Ping, StringComparison.Ordinal))
         {
             await session.WriteAsync(CreatePongEnvelope(envelope.Id), cancellationToken);
             return true;
         }
 
-        return string.Equals(envelope.Type, Commands.Pong, StringComparison.Ordinal);
+        return string.Equals(envelope.Type, BlueType.Protocol.Commands.Pong, StringComparison.Ordinal);
     }
 
     public async Task RunAsync(
@@ -66,11 +66,11 @@ internal sealed class SessionHeartbeat
 
     private static Envelope CreatePingEnvelope()
     {
-        return JsonProtocol.CreateEnvelope(Guid.NewGuid().ToString("D"), Commands.Ping, new { });
+        return JsonProtocol.CreateEnvelope(Guid.NewGuid().ToString("D"), BlueType.Protocol.Commands.Ping, new { });
     }
 
     private static Envelope CreatePongEnvelope(string requestId)
     {
-        return JsonProtocol.CreateEnvelope(requestId, Commands.Pong, new { });
+        return JsonProtocol.CreateEnvelope(requestId, BlueType.Protocol.Commands.Pong, new { });
     }
 }

@@ -6,7 +6,7 @@ using BlueType.Agent.Models;
 using BlueType.Agent.Transport;
 using BlueType.Protocol;
 
-namespace BlueType.Agent.Core;
+namespace BlueType.Agent.Application.Sessions;
 
 internal sealed class SessionHelloHandler
 {

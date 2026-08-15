@@ -1,5 +1,6 @@
 using BlueType.Agent.Core;
 using BlueType.Agent.Application.Commands;
+using BlueType.Agent.Application.Sessions;
 using BlueType.Agent.Infrastructure.Clipboard;
 using BlueType.Agent.Infrastructure.Input;
 using BlueType.Agent.Tests.TestHelpers;
