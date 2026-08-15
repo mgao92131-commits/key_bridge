@@ -1,4 +1,6 @@
-namespace BlueType.Agent.Core;
+using BlueType.Agent.Infrastructure.Persistence;
+
+namespace BlueType.Agent.Infrastructure.Logging;
 
 internal static class AppLogger
 {

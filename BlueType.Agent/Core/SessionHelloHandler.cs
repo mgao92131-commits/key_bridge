@@ -1,4 +1,5 @@
 using System.Text.Json;
+using BlueType.Agent.Infrastructure.Logging;
 using BlueType.Agent.Models;
 using BlueType.Agent.Transport;
 using BlueType.Protocol;

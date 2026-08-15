@@ -1,8 +1,9 @@
 using System.Text.Json;
+using BlueType.Agent.Infrastructure.Logging;
 using BlueType.Agent.Models;
 using BlueType.Protocol;
 
-namespace BlueType.Agent.Core;
+namespace BlueType.Agent.Infrastructure.Persistence;
 
 internal interface IAuthorizedDeviceRepository
 {

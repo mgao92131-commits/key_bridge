@@ -1,4 +1,5 @@
 using BlueType.Agent.Transport;
+using BlueType.Agent.Infrastructure.Logging;
 using BlueType.Protocol;
 
 namespace BlueType.Agent.Core;

@@ -1,4 +1,6 @@
 using BlueType.Agent.Models;
+using BlueType.Agent.Infrastructure.Input;
+using BlueType.Agent.Infrastructure.Logging;
 using BlueType.Agent.Transport;
 using BlueType.Protocol;
 

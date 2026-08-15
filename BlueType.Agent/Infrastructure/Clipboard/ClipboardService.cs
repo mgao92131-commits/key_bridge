@@ -1,6 +1,6 @@
 using System.Threading.Channels;
 
-namespace BlueType.Agent.Core;
+namespace BlueType.Agent.Infrastructure.Clipboard;
 
 internal sealed class ClipboardService : IDisposable
 {
@@ -32,7 +32,7 @@ internal sealed class ClipboardService : IDisposable
             {
                 if (!string.IsNullOrWhiteSpace(text))
                 {
-                    Clipboard.SetText(text);
+                    System.Windows.Forms.Clipboard.SetText(text);
                 }
 
                 return string.Empty;
@@ -43,7 +43,9 @@ internal sealed class ClipboardService : IDisposable
     public Task<string> GetTextAsync(CancellationToken cancellationToken = default)
     {
         return EnqueueAsync(
-            () => Clipboard.ContainsText() ? Clipboard.GetText() : string.Empty,
+            () => System.Windows.Forms.Clipboard.ContainsText()
+                ? System.Windows.Forms.Clipboard.GetText()
+                : string.Empty,
             cancellationToken);
     }
 

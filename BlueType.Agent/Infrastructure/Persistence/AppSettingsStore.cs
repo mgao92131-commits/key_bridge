@@ -1,4 +1,4 @@
-namespace BlueType.Agent.Core;
+namespace BlueType.Agent.Infrastructure.Persistence;
 
 internal static class AppSettingsStore
 {

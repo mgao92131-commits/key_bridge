@@ -1,4 +1,5 @@
 using BlueType.Agent.Core;
+using BlueType.Agent.Infrastructure.Logging;
 using BlueType.Agent.Transport;
 using InTheHand.Net.Sockets;
 

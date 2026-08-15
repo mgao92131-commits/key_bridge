@@ -1,4 +1,6 @@
 using BlueType.Protocol;
+using BlueType.Agent.Infrastructure.Input;
+using BlueType.Agent.Infrastructure.Logging;
 
 namespace BlueType.Agent.Core;
 

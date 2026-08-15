@@ -2,7 +2,7 @@ using System.Runtime.InteropServices;
 using System.Threading.Channels;
 using BlueType.Agent.Native;
 
-namespace BlueType.Agent.Core;
+namespace BlueType.Agent.Infrastructure.Input;
 
 internal sealed class InputInjector : IDisposable
 {
