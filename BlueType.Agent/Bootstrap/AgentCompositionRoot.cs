@@ -1,5 +1,6 @@
 using BlueType.Agent.Application.Authorization;
 using BlueType.Agent.Application.Commands;
+using BlueType.Agent.Application.Ports;
 using BlueType.Agent.Application.Sessions;
 using BlueType.Agent.Domain.Devices;
 using BlueType.Agent.Infrastructure.Clipboard;
@@ -21,14 +22,7 @@ internal static class AgentCompositionRoot
         var shortcutProfiles = new ShortcutProfileDispatcher();
 
         var deviceRegistry = new DeviceRegistry();
-        var commandHandlers = new ICommandHandler[]
-        {
-            new PingCommandHandler(),
-            new KeyboardCommandHandler(inputInjector),
-            new MouseCommandHandler(inputInjector),
-            new ClipboardCommandHandler(clipboardService),
-        };
-        var commandDispatcher = new CommandDispatcher(commandHandlers);
+        var commandDispatcher = CreateCommandDispatcher(inputInjector, clipboardService);
         var authService = new AuthService(deviceRegistry, promptForAuthorizationAsync);
         var activeSessionManager = new ActiveSessionManager();
         var sessionCoordinator = new SessionCoordinator(
@@ -49,5 +43,18 @@ internal static class AgentCompositionRoot
             activeSessionManager,
             tcpServer,
             bluetoothServer);
+    }
+
+    private static CommandDispatcher CreateCommandDispatcher(
+        IInputService inputService,
+        IClipboardService clipboardService)
+    {
+        return new CommandDispatcher(
+        [
+            new PingCommandHandler(),
+            new KeyboardCommandHandler(inputService),
+            new MouseCommandHandler(inputService),
+            new ClipboardCommandHandler(clipboardService),
+        ]);
     }
 }
