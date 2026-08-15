@@ -1,0 +1,9 @@
+{
+  "v": 1,
+  "id": "eeeeeeee-0000-0000-0000-000000000007",
+  "type": "error",
+  "payload": {
+    "code": "SERVER_ERROR",
+    "message": "The desktop could not complete the request."
+  }
+}

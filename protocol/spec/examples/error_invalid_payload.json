@@ -1,0 +1,9 @@
+{
+  "v": 1,
+  "id": "eeeeeeee-0000-0000-0000-000000000006",
+  "type": "error",
+  "payload": {
+    "code": "INVALID_PAYLOAD",
+    "message": "The command payload is invalid."
+  }
+}

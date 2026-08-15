@@ -81,12 +81,61 @@ public sealed class ProtocolExamplesTests
         AssertEnvelopeEquivalent(envelope, roundTripped);
     }
 
+    [Fact]
+    public async Task ProtocolManifest_RequiresFixtureCoverageForEveryMessageTypeAndErrorCode()
+    {
+        var manifest = Assert.IsType<ProtocolManifest>(JsonSerializer.Deserialize<ProtocolManifest>(
+            await File.ReadAllTextAsync(Path.Combine(FindSpecDirectory(), "protocol-v1.json")),
+            JsonProtocol.SerializerOptions));
+        var expectedTypes = manifest.Commands.Concat(manifest.Responses).ToHashSet(StringComparer.Ordinal);
+        var coveredTypes = new HashSet<string>(StringComparer.Ordinal);
+        var coveredErrorCodes = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var path in Directory.EnumerateFiles(FindExamplesDirectory(), "*.json"))
+        {
+            var envelope = Assert.IsType<Envelope>(JsonSerializer.Deserialize<Envelope>(
+                await File.ReadAllTextAsync(path),
+                JsonProtocol.SerializerOptions));
+
+            Assert.Contains(envelope.Type, expectedTypes);
+            coveredTypes.Add(envelope.Type);
+
+            if (string.Equals(envelope.Type, Responses.Error, StringComparison.Ordinal) &&
+                envelope.Payload.TryGetProperty("code", out var code) &&
+                code.ValueKind == JsonValueKind.String)
+            {
+                coveredErrorCodes.Add(code.GetString()!);
+            }
+        }
+
+        foreach (var type in expectedTypes)
+        {
+            Assert.Contains(type, coveredTypes);
+        }
+
+        foreach (var errorCode in manifest.ErrorCodes)
+        {
+            Assert.Contains(errorCode, coveredErrorCodes);
+        }
+    }
+
+    private sealed record ProtocolManifest(
+        int Version,
+        string[] Commands,
+        string[] Responses,
+        string[] ErrorCodes);
+
     private static string FindExamplesDirectory()
+    {
+        return Path.Combine(FindSpecDirectory(), "examples");
+    }
+
+    private static string FindSpecDirectory()
     {
         var current = new DirectoryInfo(AppContext.BaseDirectory);
         while (current is not null)
         {
-            var candidate = Path.Combine(current.FullName, "protocol", "spec", "examples");
+            var candidate = Path.Combine(current.FullName, "protocol", "spec");
             if (Directory.Exists(candidate))
             {
                 return candidate;
@@ -95,7 +144,7 @@ public sealed class ProtocolExamplesTests
             current = current.Parent;
         }
 
-        throw new DirectoryNotFoundException("Could not find protocol/spec/examples from the test output directory.");
+        throw new DirectoryNotFoundException("Could not find protocol/spec from the test output directory.");
     }
 
     private static void AssertEnvelopeEquivalent(Envelope expected, Envelope actual)

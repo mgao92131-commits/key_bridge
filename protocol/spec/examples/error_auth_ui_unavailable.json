@@ -1,0 +1,9 @@
+{
+  "v": 1,
+  "id": "eeeeeeee-0000-0000-0000-000000000005",
+  "type": "error",
+  "payload": {
+    "code": "AUTH_UI_UNAVAILABLE",
+    "message": "Authorization is unavailable on the desktop."
+  }
+}

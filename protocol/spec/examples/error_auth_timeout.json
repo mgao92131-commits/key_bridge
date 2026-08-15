@@ -1,0 +1,9 @@
+{
+  "v": 1,
+  "id": "eeeeeeee-0000-0000-0000-000000000004",
+  "type": "error",
+  "payload": {
+    "code": "AUTH_TIMEOUT",
+    "message": "Authorization timed out."
+  }
+}
