@@ -1,8 +1,9 @@
 using System.Security.Cryptography;
 using System.Text;
+using BlueType.Agent.Domain.Devices;
 using BlueType.Agent.Models;
 
-namespace BlueType.Agent.Core;
+namespace BlueType.Agent.Application.Authorization;
 
 internal sealed class AuthService
 {

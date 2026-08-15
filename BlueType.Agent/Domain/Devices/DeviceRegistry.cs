@@ -1,7 +1,7 @@
 using BlueType.Agent.Models;
 using BlueType.Agent.Infrastructure.Persistence;
 
-namespace BlueType.Agent.Core;
+namespace BlueType.Agent.Domain.Devices;
 
 internal sealed class DeviceRegistry
 {
