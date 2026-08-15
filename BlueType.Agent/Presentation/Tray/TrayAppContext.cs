@@ -221,8 +221,7 @@ internal sealed class TrayAppContext : ApplicationContext
         _iconGenerator.Dispose();
         _settingsForm.Dispose();
 
-        // Runtime should already be stopped in OnExit; Dispose is an idempotent safety net.
-        _runtime.Dispose();
+        // Runtime shutdown is completed by OnExit before the UI thread exits.
 
         AppLogger.Info("Tray resources disposed.");
         base.ExitThreadCore();

@@ -10,7 +10,7 @@ using BlueType.Agent.Transport.Tcp;
 
 namespace BlueType.Agent.Host;
 
-internal sealed class AgentRuntime : IDisposable
+internal sealed class AgentRuntime
 {
     private readonly InputInjector _inputInjector;
     private readonly ClipboardService _clipboardService;
@@ -90,26 +90,6 @@ internal sealed class AgentRuntime : IDisposable
         }
     }
 
-    public void Dispose()
-    {
-        try
-        {
-            if (!StopAsync().Wait(TimeSpan.FromSeconds(5)))
-            {
-                AppLogger.Warn("Agent runtime Dispose timed out waiting for StopAsync.");
-            }
-        }
-        catch (Exception ex)
-        {
-            AppLogger.Error("Agent runtime Dispose stop failed.", ex);
-        }
-        finally
-        {
-            _bluetoothServer.Dispose();
-            _tcpServer.Dispose();
-        }
-    }
-
     private async Task StopCoreAsync(CancellationToken cancellationToken)
     {
         if (Interlocked.Exchange(ref _stopped, 1) != 0)
@@ -136,6 +116,8 @@ internal sealed class AgentRuntime : IDisposable
             _shortcutProfiles.Dispose();
             _clipboardService.Dispose();
             _inputInjector.Dispose();
+            _bluetoothServer.Dispose();
+            _tcpServer.Dispose();
 
             AppLogger.Info($"Agent runtime stopped in {startedAt.ElapsedMilliseconds} ms.");
         }
