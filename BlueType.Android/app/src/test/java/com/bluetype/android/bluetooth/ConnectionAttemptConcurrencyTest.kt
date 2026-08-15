@@ -1,5 +1,6 @@
 package com.bluetype.android.bluetooth
 
+import com.bluetype.android.feature.connection.*
 import com.bluetype.android.domain.ConnectionTarget
 import com.bluetype.android.transport.OpenedTransport
 import com.bluetype.android.transport.TransportConnector

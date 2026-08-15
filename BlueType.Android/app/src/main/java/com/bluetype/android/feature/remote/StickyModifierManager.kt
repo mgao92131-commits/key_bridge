@@ -1,4 +1,4 @@
-package com.bluetype.android.bluetooth
+package com.bluetype.android.feature.remote
 
 import com.bluetype.android.domain.RemoteAction
 import kotlinx.coroutines.CoroutineScope

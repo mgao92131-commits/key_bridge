@@ -1,4 +1,4 @@
-package com.bluetype.android.ui
+package com.bluetype.android
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
@@ -8,10 +8,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import com.bluetype.android.domain.ConnectionState
 import com.bluetype.android.domain.UiRoute
-import com.bluetype.android.ui.screens.DeviceListScreen
-import com.bluetype.android.ui.screens.RemoteScreen
+import com.bluetype.android.feature.connection.DeviceListScreen
+import com.bluetype.android.feature.connection.MainViewModel
+import com.bluetype.android.feature.remote.RemoteScreen
 import com.bluetype.android.ui.theme.BlueTypeTheme
-import com.bluetype.android.ui.viewmodel.MainViewModel
 
 @Composable
 fun BlueTypeApp(viewModel: MainViewModel) {

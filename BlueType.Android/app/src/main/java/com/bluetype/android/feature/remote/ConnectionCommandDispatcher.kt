@@ -1,8 +1,10 @@
-package com.bluetype.android.bluetooth
+package com.bluetype.android.feature.remote
 
 import com.bluetype.android.domain.CommandFeedback
 import com.bluetype.android.domain.CommandFeedbackState
 import com.bluetype.android.domain.ConnectionState
+import com.bluetype.android.feature.connection.ActiveConnection
+import com.bluetype.android.feature.connection.PendingRequest
 import com.bluetype.android.protocol.*
 import kotlinx.coroutines.CompletableDeferred
 import java.util.UUID

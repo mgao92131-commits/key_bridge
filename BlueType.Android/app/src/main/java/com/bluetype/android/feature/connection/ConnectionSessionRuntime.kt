@@ -1,4 +1,4 @@
-package com.bluetype.android.bluetooth
+package com.bluetype.android.feature.connection
 
 import android.net.ConnectivityManager
 import android.net.Network
@@ -21,6 +21,11 @@ import com.bluetype.android.domain.ConnectionState
 import com.bluetype.android.domain.ConnectionTarget
 import com.bluetype.android.domain.RemoteAction
 import com.bluetype.android.domain.UiRoute
+import com.bluetype.android.feature.remote.ConnectionCommandDispatcher
+import com.bluetype.android.feature.remote.InputBackpressureController
+import com.bluetype.android.feature.remote.RemoteActionEncoder
+import com.bluetype.android.feature.remote.StickyModifierManager
+import com.bluetype.android.feature.shortcuts.ShortcutProfileWireParser
 import com.bluetype.android.protocol.*
 import com.bluetype.android.transport.ConnectionOrchestrator
 import com.bluetype.android.transport.OrchestratorTransportConnector

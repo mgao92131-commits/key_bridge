@@ -1,4 +1,4 @@
-package com.bluetype.android.ui.viewmodel
+package com.bluetype.android.feature.connection
 
 import android.app.Application
 import android.bluetooth.BluetoothManager
@@ -7,8 +7,6 @@ import android.content.ClipboardManager
 import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.bluetype.android.bluetooth.ComputerProfileFactory
-import com.bluetype.android.bluetooth.ConnectionController
 import com.bluetype.android.domain.CommandFeedback
 import com.bluetype.android.domain.ConnectionState
 import com.bluetype.android.domain.ConnectionTarget
@@ -18,7 +16,7 @@ import com.bluetype.android.domain.UiRoute
 import com.bluetype.android.domain.ShortcutProfile
 import com.bluetype.android.data.StoredDevice
 import com.bluetype.android.data.preferences.PreferenceStores
-import com.bluetype.android.util.PermissionHelper
+import com.bluetype.android.platform.permissions.PermissionHelper
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

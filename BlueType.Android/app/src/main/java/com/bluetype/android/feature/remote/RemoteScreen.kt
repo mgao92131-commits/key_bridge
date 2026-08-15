@@ -1,4 +1,4 @@
-package com.bluetype.android.ui.screens
+package com.bluetype.android.feature.remote
 
 import android.view.HapticFeedbackConstants
 import androidx.compose.animation.core.*
@@ -54,7 +54,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import com.bluetype.android.domain.*
-import com.bluetype.android.ui.components.TriRailCommandCenter
 import com.bluetype.android.ui.theme.BlueTypeRoundedTokens
 import com.bluetype.android.ui.theme.BlueTypeTheme
 import kotlinx.coroutines.delay

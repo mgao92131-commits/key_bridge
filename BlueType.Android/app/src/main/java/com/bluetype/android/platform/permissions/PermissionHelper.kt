@@ -1,4 +1,4 @@
-package com.bluetype.android.util
+package com.bluetype.android.platform.permissions
 
 import android.Manifest
 import android.content.Context

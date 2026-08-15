@@ -1,4 +1,4 @@
-package com.bluetype.android.ui.screens
+package com.bluetype.android.feature.connection
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border

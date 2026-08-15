@@ -1,4 +1,4 @@
-package com.bluetype.android.bluetooth
+package com.bluetype.android.feature.connection
 
 import android.content.Context
 import com.bluetype.android.data.StoredDevice

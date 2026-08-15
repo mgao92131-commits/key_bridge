@@ -1,5 +1,7 @@
 package com.bluetype.android.bluetooth
 
+import com.bluetype.android.feature.connection.*
+import com.bluetype.android.feature.remote.*
 import com.bluetype.android.domain.CommandFeedback
 import com.bluetype.android.domain.CommandFeedbackState
 import com.bluetype.android.domain.ConnectionState

@@ -1,4 +1,4 @@
-package com.bluetype.android.bluetooth
+package com.bluetype.android.feature.connection
 
 import java.util.concurrent.atomic.AtomicLong
 

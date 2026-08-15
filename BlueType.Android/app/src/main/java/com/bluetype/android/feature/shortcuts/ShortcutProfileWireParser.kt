@@ -1,4 +1,4 @@
-package com.bluetype.android.bluetooth
+package com.bluetype.android.feature.shortcuts
 
 import com.bluetype.android.domain.CustomShortcutBtn
 import com.bluetype.android.domain.RailConfig

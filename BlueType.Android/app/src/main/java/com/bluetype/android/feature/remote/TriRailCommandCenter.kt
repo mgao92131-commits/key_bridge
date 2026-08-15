@@ -1,4 +1,4 @@
-package com.bluetype.android.ui.components
+package com.bluetype.android.feature.remote
 
 import android.view.HapticFeedbackConstants
 import androidx.compose.animation.*

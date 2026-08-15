@@ -1,5 +1,6 @@
 package com.bluetype.android.bluetooth
 
+import com.bluetype.android.feature.connection.*
 import com.bluetype.android.data.DeviceType
 import com.bluetype.android.data.StoredDevice
 import com.bluetype.android.data.TokenCandidate

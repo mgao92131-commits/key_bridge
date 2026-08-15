@@ -1,6 +1,7 @@
 package com.bluetype.android.bluetooth
 
 import com.bluetype.android.transport.FrameCodec
+import com.bluetype.android.feature.shortcuts.*
 import com.bluetype.android.protocol.*
 import java.io.ByteArrayInputStream
 import java.io.EOFException
