@@ -30,6 +30,29 @@ public enum MessageType {
     public static let authResult = "auth_result"
     public static let clipboardValue = "clipboard_value"
     public static let shortcutProfile = "shortcut_profile"
+
+    public static let all: [String] = [
+        hello,
+        textInsert,
+        keyTap,
+        keyDown,
+        keyUp,
+        combo,
+        mouseMove,
+        mouseButton,
+        mouseClick,
+        mouseScroll,
+        clipboardSet,
+        clipboardGet,
+        ping,
+        pong,
+        ack,
+        error,
+        authPending,
+        authResult,
+        clipboardValue,
+        shortcutProfile,
+    ]
 }
 
 public enum JSONValue: Codable, Equatable {
