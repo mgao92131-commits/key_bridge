@@ -1,5 +1,5 @@
 using BlueType.Protocol;
-using BlueType.Agent.Infrastructure.Input;
+using BlueType.Agent.Application.Ports;
 using BlueType.Agent.Infrastructure.Logging;
 using ProtocolCommands = BlueType.Protocol.Commands;
 
@@ -15,11 +15,11 @@ internal sealed class MouseCommandHandler : ICommandHandler
         ProtocolCommands.MouseScroll,
     ];
 
-    private readonly InputInjector _inputInjector;
+    private readonly IInputService _inputService;
 
-    public MouseCommandHandler(InputInjector inputInjector)
+    public MouseCommandHandler(IInputService inputService)
     {
-        _inputInjector = inputInjector;
+        _inputService = inputService;
     }
 
     public IReadOnlyCollection<string> SupportedCommands => CommandTypes;
@@ -32,7 +32,7 @@ internal sealed class MouseCommandHandler : ICommandHandler
             {
                 var dx = CommandPayloadReader.GetRequiredInt(envelope.Payload, "dx");
                 var dy = CommandPayloadReader.GetRequiredInt(envelope.Payload, "dy");
-                await _inputInjector.MoveMouseAsync(dx, dy, cancellationToken);
+                await _inputService.MoveMouseAsync(dx, dy, cancellationToken);
                 AppLogger.Info($"Handled command: mouse_move ({dx},{dy}).");
                 return CreateAck(envelope.Id);
             }
@@ -44,10 +44,10 @@ internal sealed class MouseCommandHandler : ICommandHandler
                 switch (action.Trim().ToLowerInvariant())
                 {
                     case "down":
-                        await _inputInjector.PressMouseAsync(button, cancellationToken);
+                        await _inputService.PressMouseAsync(button, cancellationToken);
                         break;
                     case "up":
-                        await _inputInjector.ReleaseMouseAsync(button, cancellationToken);
+                        await _inputService.ReleaseMouseAsync(button, cancellationToken);
                         break;
                     default:
                         throw new InvalidOperationException($"Unsupported mouse button action: {action}");
@@ -61,7 +61,7 @@ internal sealed class MouseCommandHandler : ICommandHandler
             {
                 var button = CommandPayloadReader.GetRequiredString(envelope.Payload, "button");
                 var repeat = CommandPayloadReader.GetOptionalInt(envelope.Payload, "repeat", 1);
-                await _inputInjector.ClickMouseAsync(button, repeat, cancellationToken);
+                await _inputService.ClickMouseAsync(button, repeat, cancellationToken);
                 AppLogger.Info($"Handled command: mouse_click ({button} x{repeat}).");
                 return CreateAck(envelope.Id);
             }
@@ -70,7 +70,7 @@ internal sealed class MouseCommandHandler : ICommandHandler
             {
                 var deltaX = CommandPayloadReader.GetOptionalInt(envelope.Payload, "deltaX", 0);
                 var deltaY = CommandPayloadReader.GetOptionalInt(envelope.Payload, "deltaY", 0);
-                await _inputInjector.ScrollMouseAsync(deltaX, deltaY, cancellationToken);
+                await _inputService.ScrollMouseAsync(deltaX, deltaY, cancellationToken);
                 AppLogger.Info($"Handled command: mouse_scroll ({deltaX},{deltaY}).");
                 return CreateAck(envelope.Id);
             }

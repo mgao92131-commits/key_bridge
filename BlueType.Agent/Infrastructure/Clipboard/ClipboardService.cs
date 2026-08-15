@@ -1,8 +1,9 @@
 using System.Threading.Channels;
+using BlueType.Agent.Application.Ports;
 
 namespace BlueType.Agent.Infrastructure.Clipboard;
 
-internal sealed class ClipboardService : IDisposable
+internal sealed class ClipboardService : IDisposable, IClipboardService
 {
     private readonly Channel<ClipboardRequest> _requests;
     private readonly CancellationTokenSource _shutdown = new();

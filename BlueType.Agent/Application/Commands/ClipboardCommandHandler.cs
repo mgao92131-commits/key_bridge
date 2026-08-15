@@ -1,5 +1,5 @@
 using System.Text;
-using BlueType.Agent.Infrastructure.Clipboard;
+using BlueType.Agent.Application.Ports;
 using BlueType.Agent.Infrastructure.Logging;
 using BlueType.Protocol;
 using ProtocolCommands = BlueType.Protocol.Commands;
@@ -14,9 +14,9 @@ internal sealed class ClipboardCommandHandler : ICommandHandler
         ProtocolCommands.ClipboardGet,
     ];
 
-    private readonly ClipboardService _clipboardService;
+    private readonly IClipboardService _clipboardService;
 
-    public ClipboardCommandHandler(ClipboardService clipboardService)
+    public ClipboardCommandHandler(IClipboardService clipboardService)
     {
         _clipboardService = clipboardService;
     }

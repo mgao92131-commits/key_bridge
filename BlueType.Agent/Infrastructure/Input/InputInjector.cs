@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Threading.Channels;
+using BlueType.Agent.Application.Ports;
 using BlueType.Agent.Native;
 
 namespace BlueType.Agent.Infrastructure.Input;
@@ -11,7 +12,7 @@ internal interface IInputRelease
     Task ReleaseAllMouseButtonsAsync(CancellationToken cancellationToken = default);
 }
 
-internal sealed class InputInjector : IDisposable, IInputRelease
+internal sealed class InputInjector : IDisposable, IInputService, IInputRelease
 {
     private readonly Channel<QueuedInjection> _queue;
     private readonly CancellationTokenSource _shutdown = new();

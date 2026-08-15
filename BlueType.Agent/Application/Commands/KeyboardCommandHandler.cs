@@ -1,5 +1,5 @@
 using System.Text;
-using BlueType.Agent.Infrastructure.Input;
+using BlueType.Agent.Application.Ports;
 using BlueType.Agent.Infrastructure.Logging;
 using BlueType.Protocol;
 using ProtocolCommands = BlueType.Protocol.Commands;
@@ -17,11 +17,11 @@ internal sealed class KeyboardCommandHandler : ICommandHandler
         ProtocolCommands.Combo,
     ];
 
-    private readonly InputInjector _inputInjector;
+    private readonly IInputService _inputService;
 
-    public KeyboardCommandHandler(InputInjector inputInjector)
+    public KeyboardCommandHandler(IInputService inputService)
     {
-        _inputInjector = inputInjector;
+        _inputService = inputService;
     }
 
     public IReadOnlyCollection<string> SupportedCommands => CommandTypes;
@@ -41,7 +41,7 @@ internal sealed class KeyboardCommandHandler : ICommandHandler
                         new { code = "INVALID_PAYLOAD", message = "Text payload exceeds 8 KB." });
                 }
 
-                await _inputInjector.SendTextAsync(text, cancellationToken);
+                await _inputService.SendTextAsync(text, cancellationToken);
                 AppLogger.Info($"Handled command: text_insert ({Encoding.UTF8.GetByteCount(text)} bytes).");
                 return CreateAck(envelope.Id);
             }
@@ -49,7 +49,7 @@ internal sealed class KeyboardCommandHandler : ICommandHandler
             case BlueType.Protocol.Commands.KeyTap:
             {
                 var key = CommandPayloadReader.GetRequiredString(envelope.Payload, "key");
-                await _inputInjector.TapKeyAsync(key, cancellationToken);
+                await _inputService.TapKeyAsync(key, cancellationToken);
                 AppLogger.Info($"Handled command: key_tap ({key}).");
                 return CreateAck(envelope.Id);
             }
@@ -57,7 +57,7 @@ internal sealed class KeyboardCommandHandler : ICommandHandler
             case BlueType.Protocol.Commands.KeyDown:
             {
                 var key = CommandPayloadReader.GetRequiredString(envelope.Payload, "key");
-                await _inputInjector.PressKeyAsync(key, cancellationToken);
+                await _inputService.PressKeyAsync(key, cancellationToken);
                 AppLogger.Info($"Handled command: key_down ({key}).");
                 return CreateAck(envelope.Id);
             }
@@ -65,7 +65,7 @@ internal sealed class KeyboardCommandHandler : ICommandHandler
             case BlueType.Protocol.Commands.KeyUp:
             {
                 var key = CommandPayloadReader.GetRequiredString(envelope.Payload, "key");
-                await _inputInjector.ReleaseKeyAsync(key, cancellationToken);
+                await _inputService.ReleaseKeyAsync(key, cancellationToken);
                 AppLogger.Info($"Handled command: key_up ({key}).");
                 return CreateAck(envelope.Id);
             }
@@ -73,7 +73,7 @@ internal sealed class KeyboardCommandHandler : ICommandHandler
             case BlueType.Protocol.Commands.Combo:
             {
                 var keys = CommandPayloadReader.GetRequiredStringArray(envelope.Payload, "keys");
-                await _inputInjector.SendComboAsync(keys, cancellationToken);
+                await _inputService.SendComboAsync(keys, cancellationToken);
                 AppLogger.Info($"Handled command: combo ({string.Join("+", keys)}).");
                 return CreateAck(envelope.Id);
             }
