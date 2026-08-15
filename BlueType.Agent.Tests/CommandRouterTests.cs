@@ -21,6 +21,51 @@ public sealed class CommandRouterTests
     }
 
     [Fact]
+    public async Task RouteAsync_ReturnsAck_WhenKeyboardCommandIsReceived()
+    {
+        using var harness = new CommandHarness();
+        var envelope = JsonProtocol.CreateEnvelope(
+            "text-1",
+            Commands.TextInsert,
+            new { text = string.Empty });
+
+        var response = await harness.Router.RouteAsync(envelope, CancellationToken.None);
+
+        Assert.Equal(Responses.Ack, response.Type);
+        Assert.Equal(envelope.Id, response.Id);
+    }
+
+    [Fact]
+    public async Task RouteAsync_ReturnsAck_WhenMouseCommandIsReceived()
+    {
+        using var harness = new CommandHarness();
+        var envelope = JsonProtocol.CreateEnvelope(
+            "move-1",
+            Commands.MouseMove,
+            new { dx = 0, dy = 0 });
+
+        var response = await harness.Router.RouteAsync(envelope, CancellationToken.None);
+
+        Assert.Equal(Responses.Ack, response.Type);
+        Assert.Equal(envelope.Id, response.Id);
+    }
+
+    [Fact]
+    public async Task RouteAsync_ReturnsAck_WhenClipboardCommandIsReceived()
+    {
+        using var harness = new CommandHarness();
+        var envelope = JsonProtocol.CreateEnvelope(
+            "clipboard-1",
+            Commands.ClipboardSet,
+            new { text = "   " });
+
+        var response = await harness.Router.RouteAsync(envelope, CancellationToken.None);
+
+        Assert.Equal(Responses.Ack, response.Type);
+        Assert.Equal(envelope.Id, response.Id);
+    }
+
+    [Fact]
     public async Task RouteAsync_ReturnsInvalidPayloadError_WhenCommandIsUnknown()
     {
         using var harness = new CommandHarness();
@@ -44,6 +89,36 @@ public sealed class CommandRouterTests
         Assert.Equal(Responses.Error, response.Type);
         Assert.Equal("INVALID_PAYLOAD", EnvelopeTestReader.GetString(response, "code"));
         Assert.Equal("Text payload exceeds 8 KB.", EnvelopeTestReader.GetString(response, "message"));
+    }
+
+    [Fact]
+    public async Task RouteAsync_PropagatesHandlerException_WhenHandlerFails()
+    {
+        using var harness = new CommandHarness();
+        var envelope = JsonProtocol.CreateEnvelope(
+            "mouse-invalid",
+            Commands.MouseButton,
+            new { button = "LEFT", action = "sideways" });
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => harness.Router.RouteAsync(envelope, CancellationToken.None));
+
+        Assert.Contains("Unsupported mouse button action", exception.Message);
+    }
+
+    [Fact]
+    public async Task RouteAsync_PropagatesCancellationToken_ToHandler()
+    {
+        using var harness = new CommandHarness();
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var envelope = JsonProtocol.CreateEnvelope(
+            "text-cancelled",
+            Commands.TextInsert,
+            new { text = "A" });
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => harness.Router.RouteAsync(envelope, cancellation.Token));
     }
 
     private sealed class CommandHarness : IDisposable
