@@ -121,6 +121,22 @@ public sealed class CommandDispatcherTests
             () => harness.Dispatcher.DispatchAsync(envelope, cancellation.Token));
     }
 
+    [Fact]
+    public void Constructor_Throws_WhenCommandRegisteredByMultipleHandlers()
+    {
+        var handlers = new ICommandHandler[]
+        {
+            new StubCommandHandler(Commands.KeyDown),
+            new StubCommandHandler(Commands.KeyDown),
+        };
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => new CommandDispatcher(handlers));
+
+        Assert.Contains(Commands.KeyDown, exception.Message);
+        Assert.Contains("multiple handlers", exception.Message);
+    }
+
     private sealed class CommandHarness : IDisposable
     {
         private readonly InputInjector _inputInjector = new();
@@ -137,6 +153,22 @@ public sealed class CommandDispatcherTests
         {
             _clipboardService.Dispose();
             _inputInjector.Dispose();
+        }
+    }
+
+    private sealed class StubCommandHandler : ICommandHandler
+    {
+        public StubCommandHandler(string commandType)
+        {
+            SupportedCommands = [commandType];
+        }
+
+        public IReadOnlyCollection<string> SupportedCommands { get; }
+
+        public Task<Envelope> HandleAsync(Envelope envelope, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(
+                JsonProtocol.CreateEnvelope(envelope.Id, Responses.Ack, new { ok = true }));
         }
     }
 }
