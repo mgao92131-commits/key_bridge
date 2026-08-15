@@ -5,6 +5,7 @@ using BlueType.Agent.Domain.Devices;
 using BlueType.Agent.Infrastructure.Clipboard;
 using BlueType.Agent.Infrastructure.Input;
 using BlueType.Agent.Models;
+using BlueType.Agent.Host;
 using BlueType.Agent.Transport.Bluetooth;
 using BlueType.Agent.Transport.Tcp;
 
@@ -12,7 +13,7 @@ namespace BlueType.Agent.Bootstrap;
 
 internal static class AgentCompositionRoot
 {
-    internal static Components Create(
+    internal static AgentRuntime Create(
         Func<AuthPromptRequest, CancellationToken, Task<AuthPromptDecision>> promptForAuthorizationAsync)
     {
         var inputInjector = new InputInjector();
@@ -34,7 +35,7 @@ internal static class AgentCompositionRoot
         var tcpServer = new TcpServer(sessionProcessor);
         var bluetoothServer = new BluetoothServer(sessionProcessor);
 
-        return new Components(
+        return new AgentRuntime(
             inputInjector,
             clipboardService,
             shortcutProfiles,
@@ -42,12 +43,4 @@ internal static class AgentCompositionRoot
             tcpServer,
             bluetoothServer);
     }
-
-    internal sealed record Components(
-        InputInjector InputInjector,
-        ClipboardService ClipboardService,
-        ShortcutProfileDispatcher ShortcutProfiles,
-        ActiveSessionManager ActiveSessionManager,
-        TcpServer TcpServer,
-        BluetoothServer BluetoothServer);
 }
