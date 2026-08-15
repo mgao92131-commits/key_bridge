@@ -1,4 +1,5 @@
 using BlueType.Agent.Application.Commands;
+using BlueType.Agent.Application.Shortcuts;
 using BlueType.Agent.Models;
 using BlueType.Agent.Transport;
 using BlueType.Protocol;

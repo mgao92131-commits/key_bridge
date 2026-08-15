@@ -1,4 +1,5 @@
 using BlueType.Agent.Application.Commands;
+using BlueType.Agent.Application.Shortcuts;
 using BlueType.Agent.Infrastructure.Input;
 using BlueType.Agent.Infrastructure.Logging;
 

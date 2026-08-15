@@ -2,6 +2,7 @@ using BlueType.Agent.Application.Authorization;
 using BlueType.Agent.Application.Commands;
 using BlueType.Agent.Application.Ports;
 using BlueType.Agent.Application.Sessions;
+using BlueType.Agent.Application.Shortcuts;
 using BlueType.Agent.Domain.Devices;
 using BlueType.Agent.Infrastructure.Clipboard;
 using BlueType.Agent.Infrastructure.Input;

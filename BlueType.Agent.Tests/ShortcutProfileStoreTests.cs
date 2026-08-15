@@ -1,6 +1,6 @@
 using System.Reflection;
 using System.Text.Json;
-using BlueType.Agent.Application.Commands;
+using BlueType.Agent.Infrastructure.Shortcuts;
 
 namespace BlueType.Agent.Tests;
 

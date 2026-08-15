@@ -1,6 +1,6 @@
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using BlueType.Agent.Application.Commands;
+using BlueType.Agent.Application.Shortcuts;
 using BlueType.Protocol;
 
 namespace BlueType.Agent.Tests;
