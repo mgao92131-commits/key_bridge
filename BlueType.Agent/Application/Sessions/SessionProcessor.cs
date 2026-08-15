@@ -13,9 +13,9 @@ internal sealed class SessionProcessor
     private readonly CommandRouter _commandRouter;
     private readonly SessionHelloHandler _helloHandler;
     private readonly SessionHeartbeat _heartbeat;
-    private readonly IInputRelease _inputRelease;
     private readonly ActiveSessionManager _activeSessionManager;
     private readonly IShortcutProfileDispatcher _shortcutProfiles;
+    private readonly SessionCleanup _cleanup;
 
     public SessionProcessor(
         CommandRouter commandRouter,
@@ -65,9 +65,9 @@ internal sealed class SessionProcessor
         _commandRouter = commandRouter;
         _helloHandler = new SessionHelloHandler(commandRouter, authService, activeSessionManager, promptAsync);
         _heartbeat = heartbeat;
-        _inputRelease = inputRelease;
         _activeSessionManager = activeSessionManager;
         _shortcutProfiles = shortcutProfiles;
+        _cleanup = new SessionCleanup(activeSessionManager, shortcutProfiles, inputRelease);
     }
 
     public async Task RunAsync(
@@ -194,34 +194,7 @@ internal sealed class SessionProcessor
         }
         finally
         {
-            sessionLifetime.Cancel();
-            _shortcutProfiles.UnregisterSession(sessionId);
-            _activeSessionManager.Deactivate(sessionId);
-            try
-            {
-                await heartbeatTask;
-            }
-            catch (OperationCanceledException)
-            {
-            }
-
-            try
-            {
-                await _inputRelease.ReleaseAllKeysAsync();
-            }
-            catch (Exception ex)
-            {
-                AppLogger.Error("Failed to release keyboard keys after session shutdown.", ex);
-            }
-
-            try
-            {
-                await _inputRelease.ReleaseAllMouseButtonsAsync();
-            }
-            catch (Exception ex)
-            {
-                AppLogger.Error("Failed to release mouse buttons after session shutdown.", ex);
-            }
+            await _cleanup.ExecuteAsync(sessionId, sessionLifetime, heartbeatTask);
         }
     }
 }
