@@ -9,8 +9,8 @@ internal sealed class BluetoothServer : ConnectionServerBase<BluetoothClient>, I
 {
     private BluetoothListener? _listener;
 
-    public BluetoothServer(SessionProcessor sessionProcessor)
-        : base(sessionProcessor)
+    public BluetoothServer(SessionCoordinator sessionCoordinator)
+        : base(sessionCoordinator)
     {
     }
 

@@ -8,7 +8,7 @@ namespace BlueType.Agent.Transport;
 internal abstract class ConnectionServerBase<TClient> : IDisposable
     where TClient : class
 {
-    private readonly SessionProcessor _sessionProcessor;
+    private readonly SessionCoordinator _sessionCoordinator;
     private readonly CancellationTokenSource _shutdown = new();
     private readonly object _clientsLock = new();
     private readonly Dictionary<Guid, ActiveClientContext> _activeClients = [];
@@ -22,9 +22,9 @@ internal abstract class ConnectionServerBase<TClient> : IDisposable
     private int _stopRequested;
     private int _disposed;
 
-    protected ConnectionServerBase(SessionProcessor sessionProcessor)
+    protected ConnectionServerBase(SessionCoordinator sessionCoordinator)
     {
-        _sessionProcessor = sessionProcessor;
+        _sessionCoordinator = sessionCoordinator;
     }
 
     public event Action<ConnectionState>? ConnectionStateChanged;
@@ -352,7 +352,7 @@ internal abstract class ConnectionServerBase<TClient> : IDisposable
         try
         {
             await using var session = CreateSession(client);
-            await _sessionProcessor.RunAsync(
+            await _sessionCoordinator.RunAsync(
                 session,
                 remoteAddress,
                 SessionTransportName,

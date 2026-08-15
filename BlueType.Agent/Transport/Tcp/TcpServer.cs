@@ -11,8 +11,8 @@ internal sealed class TcpServer : ConnectionServerBase<TcpClient>, IRuntimeTrans
 {
     private readonly TcpListener _listener;
 
-    public TcpServer(SessionProcessor sessionProcessor)
-        : base(sessionProcessor)
+    public TcpServer(SessionCoordinator sessionCoordinator)
+        : base(sessionCoordinator)
     {
         _listener = new TcpListener(IPAddress.Any, PortConstants.DefaultTcpPort);
     }

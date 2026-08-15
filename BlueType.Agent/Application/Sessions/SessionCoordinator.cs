@@ -8,7 +8,7 @@ using BlueType.Protocol;
 
 namespace BlueType.Agent.Application.Sessions;
 
-internal sealed class SessionProcessor
+internal sealed class SessionCoordinator
 {
     private readonly CommandRouter _commandRouter;
     private readonly SessionHeartbeat _heartbeat;
@@ -16,7 +16,7 @@ internal sealed class SessionProcessor
     private readonly ActiveSessionManager _activeSessionManager;
     private readonly SessionCleanup _cleanup;
 
-    public SessionProcessor(
+    public SessionCoordinator(
         CommandRouter commandRouter,
         AuthService authService,
         InputInjector inputInjector)
@@ -32,7 +32,7 @@ internal sealed class SessionProcessor
     {
     }
 
-    public SessionProcessor(
+    public SessionCoordinator(
         CommandRouter commandRouter,
         AuthService authService,
         InputInjector inputInjector,
@@ -51,7 +51,7 @@ internal sealed class SessionProcessor
     {
     }
 
-    internal SessionProcessor(
+    internal SessionCoordinator(
         CommandRouter commandRouter,
         AuthService authService,
         InputInjector inputInjector,

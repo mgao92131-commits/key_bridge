@@ -24,7 +24,7 @@ internal static class AgentCompositionRoot
         var commandRouter = new CommandRouter(inputInjector, clipboardService);
         var authService = new AuthService(deviceRegistry, promptForAuthorizationAsync);
         var activeSessionManager = new ActiveSessionManager();
-        var sessionProcessor = new SessionProcessor(
+        var sessionCoordinator = new SessionCoordinator(
             commandRouter,
             authService,
             inputInjector,
@@ -32,8 +32,8 @@ internal static class AgentCompositionRoot
             shortcutProfiles,
             promptForAuthorizationAsync);
 
-        var tcpServer = new TcpServer(sessionProcessor);
-        var bluetoothServer = new BluetoothServer(sessionProcessor);
+        var tcpServer = new TcpServer(sessionCoordinator);
+        var bluetoothServer = new BluetoothServer(sessionCoordinator);
 
         return new AgentRuntime(
             inputInjector,

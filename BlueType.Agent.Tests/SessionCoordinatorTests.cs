@@ -11,7 +11,7 @@ using BlueType.Protocol;
 
 namespace BlueType.Agent.Tests;
 
-public sealed class SessionProcessorTests
+public sealed class SessionCoordinatorTests
 {
     [Fact]
     public async Task RejectBusyClientAsync_WritesBusyError()
@@ -195,9 +195,9 @@ public sealed class SessionProcessorTests
 
         var responses = await EnvelopeTestReader.ReadAllAsync(harness.GetWrittenBytes());
 
-        Assert.Equal(2, responses.Count);
-        Assert.Equal(Responses.AuthResult, responses[1].Type);
-        Assert.True(EnvelopeTestReader.GetBoolean(responses[1], "ok"));
+        Assert.Single(responses);
+        Assert.Equal(Responses.AuthResult, responses[0].Type);
+        Assert.True(EnvelopeTestReader.GetBoolean(responses[0], "ok"));
     }
 
     [Fact]
@@ -361,7 +361,7 @@ public sealed class SessionProcessorTests
             ShortcutProfiles = shortcutProfiles ?? new RecordingShortcutProfileDispatcher();
             InputRelease = inputRelease ?? new RecordingInputRelease();
             Router = new CommandRouter(_inputInjector, _clipboardService);
-            Processor = new SessionProcessor(
+        Processor = new SessionCoordinator(
                 Router,
                 AuthService,
                 _inputInjector,
@@ -384,7 +384,7 @@ public sealed class SessionProcessorTests
 
         public RecordingInputRelease InputRelease { get; }
 
-        public SessionProcessor Processor { get; }
+        public SessionCoordinator Processor { get; }
 
         public ClientSession CreateSession()
         {

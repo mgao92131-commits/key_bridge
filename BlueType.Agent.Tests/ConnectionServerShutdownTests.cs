@@ -174,7 +174,7 @@ public sealed class ConnectionServerShutdownTests
         private volatile bool _listeningStopped;
 
         public FakeConnectionServer(
-            SessionProcessor processor,
+            SessionCoordinator processor,
             AcceptMode acceptMode,
             TimeSpan? listenLoopShutdownTimeout = null)
             : base(processor)
@@ -492,14 +492,14 @@ public sealed class ConnectionServerShutdownTests
         private readonly ClipboardService _clipboardService = new();
         private readonly DeviceRegistrySandbox _sandbox = new();
 
-        public SessionProcessor Processor { get; }
+        public SessionCoordinator Processor { get; }
 
         private ServerHarness(Func<AuthPromptRequest, CancellationToken, Task<AuthPromptDecision>> prompt)
         {
             var registry = new DeviceRegistry(_sandbox.SettingsFilePath);
             var authService = new AuthService(registry, prompt);
             var router = new CommandRouter(_inputInjector, _clipboardService);
-            Processor = new SessionProcessor(router, authService, _inputInjector);
+            Processor = new SessionCoordinator(router, authService, _inputInjector);
         }
 
         public static ServerHarness Create()
