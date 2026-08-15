@@ -77,7 +77,16 @@ internal sealed class SessionProcessor
         Action<string>? onMessage,
         CancellationToken cancellationToken)
     {
-        await RunAsync(session, remoteAddress, transport, onState, onMessage, Guid.NewGuid(), () => { }, cancellationToken);
+        await RunAsync(
+            new SessionExecutionContext(
+                session,
+                Guid.NewGuid(),
+                remoteAddress,
+                transport,
+                onState,
+                onMessage,
+                () => { }),
+            cancellationToken);
     }
 
     public async Task RejectBusyClientAsync(ClientSession session, CancellationToken cancellationToken)
@@ -95,26 +104,42 @@ internal sealed class SessionProcessor
         Action disconnectCurrentSession,
         CancellationToken cancellationToken)
     {
-        var lifecycle = new SessionLifecycle(_commandRouter, _activeSessionManager, sessionId);
+        await RunAsync(
+            new SessionExecutionContext(
+                session,
+                sessionId,
+                remoteAddress,
+                transport,
+                onState,
+                onMessage,
+                disconnectCurrentSession),
+            cancellationToken);
+    }
+
+    internal async Task RunAsync(
+        SessionExecutionContext context,
+        CancellationToken cancellationToken)
+    {
+        var lifecycle = new SessionLifecycle(_commandRouter, _activeSessionManager, context.SessionId);
         long lastInboundAt = Environment.TickCount64;
         using var sessionLifetime = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var sessionToken = sessionLifetime.Token;
         var heartbeatTask = _heartbeat.RunAsync(
-            session,
-            transport,
-            remoteAddress,
+            context.Session,
+            context.Transport,
+            context.RemoteAddress,
             () => Volatile.Read(ref lastInboundAt),
-            onMessage,
+            context.OnMessage,
             sessionLifetime);
 
-        onState?.Invoke(ConnectionState.ClientConnected);
-        AppLogger.Info($"{transport} client connected from {remoteAddress ?? "unknown"}.");
+        context.OnState?.Invoke(ConnectionState.ClientConnected);
+        AppLogger.Info($"{context.Transport} client connected from {context.RemoteAddress ?? "unknown"}.");
 
         try
         {
             while (!sessionToken.IsCancellationRequested)
             {
-                var envelope = await session.ReadAsync(sessionToken);
+                var envelope = await context.Session.ReadAsync(sessionToken);
                 if (envelope is null)
                 {
                     break;
@@ -122,21 +147,21 @@ internal sealed class SessionProcessor
 
                 Volatile.Write(ref lastInboundAt, Environment.TickCount64);
 
-                if (await _heartbeat.TryHandleInboundAsync(session, envelope, sessionToken))
+                if (await _heartbeat.TryHandleInboundAsync(context.Session, envelope, sessionToken))
                 {
                     continue;
                 }
 
                 var handshakeResult = await _handshake.TryHandleAsync(
-                    session,
+                    context.Session,
                     envelope,
                     lifecycle,
-                    remoteAddress,
-                    transport,
-                    onState,
-                    onMessage,
-                    sessionId,
-                    disconnectCurrentSession,
+                    context.RemoteAddress,
+                    context.Transport,
+                    context.OnState,
+                    context.OnMessage,
+                    context.SessionId,
+                    context.DisconnectCurrentSession,
                     sessionToken);
                 if (handshakeResult == HandshakeResult.Continue)
                 {
@@ -153,7 +178,7 @@ internal sealed class SessionProcessor
                 if (lifecycleError is not null)
                 {
                     response = lifecycleError;
-                    await session.WriteAsync(response, sessionToken);
+                    await context.Session.WriteAsync(response, sessionToken);
                     if (string.Equals(response.Type, Responses.Error, StringComparison.Ordinal) &&
                         response.Payload.TryGetProperty("code", out var code) &&
                         string.Equals(code.GetString(), "SESSION_REPLACED", StringComparison.Ordinal))
@@ -169,14 +194,14 @@ internal sealed class SessionProcessor
                     }
                     catch (Exception ex)
                     {
-                        AppLogger.Error($"Failed to route {transport} command {envelope.Type}.", ex);
+                        AppLogger.Error($"Failed to route {context.Transport} command {envelope.Type}.", ex);
                         response = _commandRouter.CreateError(envelope.Id, "SERVER_ERROR", ex.Message);
                     }
                 }
 
                 if (lifecycleError is null)
                 {
-                    await session.WriteAsync(response, sessionToken);
+                    await context.Session.WriteAsync(response, sessionToken);
                 }
             }
         }
@@ -185,7 +210,7 @@ internal sealed class SessionProcessor
         }
         finally
         {
-            await _cleanup.ExecuteAsync(sessionId, sessionLifetime, heartbeatTask);
+            await _cleanup.ExecuteAsync(context.SessionId, sessionLifetime, heartbeatTask);
         }
     }
 }
