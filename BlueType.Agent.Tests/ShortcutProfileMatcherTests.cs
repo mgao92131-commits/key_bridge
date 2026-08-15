@@ -1,5 +1,3 @@
-using System.Reflection;
-using System.Runtime.CompilerServices;
 using BlueType.Agent.Application.Shortcuts;
 using BlueType.Protocol;
 
@@ -53,17 +51,7 @@ public sealed class ShortcutProfileMatcherTests
         IReadOnlyList<ShortcutProfileDefinition> profiles,
         string? processName)
     {
-        var dispatcher = (ShortcutProfileDispatcher)RuntimeHelpers.GetUninitializedObject(
-            typeof(ShortcutProfileDispatcher));
-        var profilesField = typeof(ShortcutProfileDispatcher).GetField(
-            "_profiles",
-            BindingFlags.Instance | BindingFlags.NonPublic);
-        profilesField!.SetValue(dispatcher, profiles);
-
-        var matchMethod = typeof(ShortcutProfileDispatcher).GetMethod(
-            "Match",
-            BindingFlags.Instance | BindingFlags.NonPublic);
-        return (ShortcutProfileDefinition?)matchMethod!.Invoke(dispatcher, [processName]);
+        return new ShortcutProfileMatcher().Match(profiles, processName);
     }
 
     private static ShortcutProfileDefinition CreateProfile(

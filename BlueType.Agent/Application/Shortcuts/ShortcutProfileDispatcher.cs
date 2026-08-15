@@ -20,6 +20,7 @@ internal sealed class ShortcutProfileDispatcher : IShortcutProfileDispatcher, ID
     private readonly object _gate = new();
     private readonly CancellationTokenSource _stop = new();
     private readonly IReadOnlyList<ShortcutProfileDefinition> _profiles;
+    private readonly ShortcutProfileMatcher _matcher;
     private readonly Task _pollTask;
 
     private ActiveShortcutSession? _activeSession;
@@ -27,9 +28,10 @@ internal sealed class ShortcutProfileDispatcher : IShortcutProfileDispatcher, ID
     private long _observedSince;
     private string? _lastSentProfileKey;
 
-    public ShortcutProfileDispatcher()
+    public ShortcutProfileDispatcher(ShortcutProfileMatcher matcher)
     {
         _profiles = ShortcutProfileStore.Load();
+        _matcher = matcher;
         _pollTask = Task.Run(PollAsync);
     }
 
@@ -123,7 +125,7 @@ internal sealed class ShortcutProfileDispatcher : IShortcutProfileDispatcher, ID
             return;
         }
 
-        var profile = Match(processName);
+        var profile = _matcher.Match(_profiles, processName);
         var profileKey = profile?.Id ?? string.Empty;
 
         lock (_gate)
@@ -157,32 +159,6 @@ internal sealed class ShortcutProfileDispatcher : IShortcutProfileDispatcher, ID
         {
             AppLogger.Error("Failed to send shortcut profile.", ex);
         }
-    }
-
-    private ShortcutProfileDefinition? Match(string? processName)
-    {
-        if (!string.IsNullOrWhiteSpace(processName))
-        {
-            var appProfile = _profiles.FirstOrDefault(profile =>
-                profile.Match.WindowsProcesses.Any(candidate => ProcessNamesEqual(candidate, processName)));
-            if (appProfile is not null)
-            {
-                return appProfile;
-            }
-        }
-
-        return _profiles.FirstOrDefault(profile =>
-            string.Equals(profile.Id, "default", StringComparison.OrdinalIgnoreCase));
-    }
-
-    private static bool ProcessNamesEqual(string configured, string actual)
-    {
-        static string Normalize(string value) =>
-            value.Trim().EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
-                ? value.Trim()[..^4]
-                : value.Trim();
-
-        return string.Equals(Normalize(configured), Normalize(actual), StringComparison.OrdinalIgnoreCase);
     }
 
     private sealed record ActiveShortcutSession(Guid SessionId, ClientSession Session);
