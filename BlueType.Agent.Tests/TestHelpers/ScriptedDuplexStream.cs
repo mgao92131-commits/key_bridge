@@ -1,6 +1,6 @@
 namespace BlueType.Agent.Tests.TestHelpers;
 
-internal sealed class ScriptedDuplexStream : Stream
+internal class ScriptedDuplexStream : Stream
 {
     private readonly MemoryStream _readStream;
     private readonly MemoryStream _writeStream = new();

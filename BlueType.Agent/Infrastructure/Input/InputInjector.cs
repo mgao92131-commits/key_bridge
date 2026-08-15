@@ -4,7 +4,14 @@ using BlueType.Agent.Native;
 
 namespace BlueType.Agent.Infrastructure.Input;
 
-internal sealed class InputInjector : IDisposable
+internal interface IInputRelease
+{
+    Task ReleaseAllKeysAsync(CancellationToken cancellationToken = default);
+
+    Task ReleaseAllMouseButtonsAsync(CancellationToken cancellationToken = default);
+}
+
+internal sealed class InputInjector : IDisposable, IInputRelease
 {
     private readonly Channel<QueuedInjection> _queue;
     private readonly CancellationTokenSource _shutdown = new();

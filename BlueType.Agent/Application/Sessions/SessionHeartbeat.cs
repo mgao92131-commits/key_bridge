@@ -6,8 +6,21 @@ namespace BlueType.Agent.Application.Sessions;
 
 internal sealed class SessionHeartbeat
 {
-    private static readonly TimeSpan HeartbeatInterval = TimeSpan.FromSeconds(15);
-    private static readonly TimeSpan HeartbeatTimeout = TimeSpan.FromSeconds(90);
+    private static readonly TimeSpan DefaultHeartbeatInterval = TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan DefaultHeartbeatTimeout = TimeSpan.FromSeconds(90);
+    private readonly TimeSpan _heartbeatInterval;
+    private readonly TimeSpan _heartbeatTimeout;
+
+    public SessionHeartbeat()
+        : this(DefaultHeartbeatInterval, DefaultHeartbeatTimeout)
+    {
+    }
+
+    internal SessionHeartbeat(TimeSpan heartbeatInterval, TimeSpan heartbeatTimeout)
+    {
+        _heartbeatInterval = heartbeatInterval;
+        _heartbeatTimeout = heartbeatTimeout;
+    }
 
     public async Task<bool> TryHandleInboundAsync(ClientSession session, Envelope envelope, CancellationToken cancellationToken)
     {
@@ -32,13 +45,13 @@ internal sealed class SessionHeartbeat
         {
             while (!sessionLifetime.IsCancellationRequested)
             {
-                await Task.Delay(HeartbeatInterval, sessionLifetime.Token);
+                await Task.Delay(_heartbeatInterval, sessionLifetime.Token);
 
                 var silence = TimeSpan.FromMilliseconds(Environment.TickCount64 - getLastInboundAt());
-                if (silence >= HeartbeatTimeout)
+                if (silence >= _heartbeatTimeout)
                 {
                     var endpoint = remoteAddress ?? "unknown";
-                    var message = $"{transport} client {endpoint} timed out after {HeartbeatTimeout.TotalSeconds:0} seconds.";
+                    var message = $"{transport} client {endpoint} timed out after {_heartbeatTimeout.TotalSeconds:0} seconds.";
                     onMessage?.Invoke(message);
                     AppLogger.Info(message);
 

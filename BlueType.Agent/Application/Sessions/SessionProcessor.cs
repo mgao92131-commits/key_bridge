@@ -13,7 +13,7 @@ internal sealed class SessionProcessor
     private readonly CommandRouter _commandRouter;
     private readonly SessionHelloHandler _helloHandler;
     private readonly SessionHeartbeat _heartbeat;
-    private readonly InputInjector _inputInjector;
+    private readonly IInputRelease _inputRelease;
     private readonly ActiveSessionManager _activeSessionManager;
     private readonly IShortcutProfileDispatcher _shortcutProfiles;
 
@@ -27,7 +27,9 @@ internal sealed class SessionProcessor
             inputInjector,
             new ActiveSessionManager(),
             NullShortcutProfileDispatcher.Instance,
-            (_, _) => Task.FromResult(AuthPromptDecision.Deny))
+            (_, _) => Task.FromResult(AuthPromptDecision.Deny),
+            inputInjector,
+            new SessionHeartbeat())
     {
     }
 
@@ -38,11 +40,32 @@ internal sealed class SessionProcessor
         ActiveSessionManager activeSessionManager,
         IShortcutProfileDispatcher shortcutProfiles,
         Func<AuthPromptRequest, CancellationToken, Task<AuthPromptDecision>> promptAsync)
+        : this(
+            commandRouter,
+            authService,
+            inputInjector,
+            activeSessionManager,
+            shortcutProfiles,
+            promptAsync,
+            inputInjector,
+            new SessionHeartbeat())
+    {
+    }
+
+    internal SessionProcessor(
+        CommandRouter commandRouter,
+        AuthService authService,
+        InputInjector inputInjector,
+        ActiveSessionManager activeSessionManager,
+        IShortcutProfileDispatcher shortcutProfiles,
+        Func<AuthPromptRequest, CancellationToken, Task<AuthPromptDecision>> promptAsync,
+        IInputRelease inputRelease,
+        SessionHeartbeat heartbeat)
     {
         _commandRouter = commandRouter;
         _helloHandler = new SessionHelloHandler(commandRouter, authService, activeSessionManager, promptAsync);
-        _heartbeat = new SessionHeartbeat();
-        _inputInjector = inputInjector;
+        _heartbeat = heartbeat;
+        _inputRelease = inputRelease;
         _activeSessionManager = activeSessionManager;
         _shortcutProfiles = shortcutProfiles;
     }
@@ -184,7 +207,7 @@ internal sealed class SessionProcessor
 
             try
             {
-                await _inputInjector.ReleaseAllKeysAsync();
+                await _inputRelease.ReleaseAllKeysAsync();
             }
             catch (Exception ex)
             {
@@ -193,7 +216,7 @@ internal sealed class SessionProcessor
 
             try
             {
-                await _inputInjector.ReleaseAllMouseButtonsAsync();
+                await _inputRelease.ReleaseAllMouseButtonsAsync();
             }
             catch (Exception ex)
             {
