@@ -1,35 +1,46 @@
 using System.Text.Json;
 using BlueType.Agent.Application.Shortcuts;
+using BlueType.Agent.Application.Ports;
 using BlueType.Agent.Infrastructure.Logging;
 using BlueType.Protocol;
 
 namespace BlueType.Agent.Infrastructure.Shortcuts;
 
-internal static class ShortcutProfileStore
+internal sealed class JsonShortcutProfileRepository : IShortcutProfileRepository
 {
-    public static IReadOnlyList<ShortcutProfileDefinition> Load()
-    {
-        var path = Path.Combine(
+    private readonly string _path;
+
+    public JsonShortcutProfileRepository()
+        : this(Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "BlueType",
-            "shortcut-profiles.json");
+            "shortcut-profiles.json"))
+    {
+    }
 
-        if (!File.Exists(path))
+    internal JsonShortcutProfileRepository(string path)
+    {
+        _path = path;
+    }
+
+    public IReadOnlyList<ShortcutProfileDefinition> Load()
+    {
+        if (!File.Exists(_path))
         {
             try
             {
-                SeedDefaultFile(path);
+                SeedDefaultFile();
             }
             catch (Exception ex)
             {
-                AppLogger.Error($"Failed to create default shortcut profile file at {path}.", ex);
+                AppLogger.Error($"Failed to create default shortcut profile file at {_path}.", ex);
                 return Array.Empty<ShortcutProfileDefinition>();
             }
         }
 
         try
         {
-            var json = File.ReadAllText(path);
+            var json = File.ReadAllText(_path);
             var document = JsonSerializer.Deserialize<ShortcutProfileFile>(json, JsonProtocol.SerializerOptions);
             if (document?.Profiles is null)
             {
@@ -56,7 +67,7 @@ internal static class ShortcutProfileStore
         }
         catch (Exception ex)
         {
-            AppLogger.Error($"Failed to load shortcut profiles from {path}. Android will use local defaults.", ex);
+            AppLogger.Error($"Failed to load shortcut profiles from {_path}. Android will use local defaults.", ex);
             return Array.Empty<ShortcutProfileDefinition>();
         }
     }
@@ -80,16 +91,16 @@ internal static class ShortcutProfileStore
         public List<string> MacBundleIds { get; set; } = [];
     }
 
-    private static void SeedDefaultFile(string path)
+    private void SeedDefaultFile()
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
         var json = JsonSerializer.Serialize(
             DefaultShortcutProfiles.CreateFileDocument(),
             new JsonSerializerOptions(JsonProtocol.SerializerOptions)
             {
                 WriteIndented = true,
             });
-        File.WriteAllText(path, json);
-        AppLogger.Info($"Created default shortcut profile file at {path}.");
+        File.WriteAllText(_path, json);
+        AppLogger.Info($"Created default shortcut profile file at {_path}.");
     }
 }

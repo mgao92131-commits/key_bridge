@@ -32,9 +32,10 @@ internal sealed class ShortcutProfileDispatcher : IShortcutProfileDispatcher, ID
 
     public ShortcutProfileDispatcher(
         ShortcutProfileMatcher matcher,
-        IForegroundAppProvider foregroundAppProvider)
+        IForegroundAppProvider foregroundAppProvider,
+        IShortcutProfileRepository profileRepository)
     {
-        _profiles = ShortcutProfileStore.Load();
+        _profiles = profileRepository.Load();
         _foregroundAppProvider = foregroundAppProvider;
         _matcher = matcher;
         _pollTask = Task.Run(PollAsync);

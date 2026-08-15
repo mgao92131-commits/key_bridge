@@ -23,7 +23,8 @@ internal static class AgentCompositionRoot
         var clipboardService = new ClipboardService();
         var shortcutProfiles = new ShortcutProfileDispatcher(
             new ShortcutProfileMatcher(),
-            new WindowsForegroundAppProvider());
+            new WindowsForegroundAppProvider(),
+            new JsonShortcutProfileRepository());
 
         var deviceRegistry = new DeviceRegistry();
         var commandDispatcher = CreateCommandDispatcher(inputInjector, clipboardService);
