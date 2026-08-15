@@ -6,6 +6,15 @@ using BlueType.Agent.Transport;
 
 namespace BlueType.Agent.Host;
 
+internal enum RuntimeState
+{
+    Created,
+    Starting,
+    Running,
+    Stopping,
+    Stopped,
+}
+
 internal sealed class AgentRuntime
 {
     private readonly IDisposable _inputInjector;
@@ -14,9 +23,10 @@ internal sealed class AgentRuntime
     private readonly ActiveSessionManager _activeSessionManager;
     private readonly IRuntimeTransport _tcpServer;
     private readonly IRuntimeTransport _bluetoothServer;
-    private readonly object _stopLock = new();
+    private readonly object _lifecycleLock = new();
     private Task? _stopTask;
     private int _stopped;
+    private int _state = (int)RuntimeState.Created;
 
     internal AgentRuntime(
         IDisposable inputInjector,
@@ -43,10 +53,33 @@ internal sealed class AgentRuntime
 
     public event Action<string>? ServerMessage;
 
+    internal RuntimeState State => (RuntimeState)Volatile.Read(ref _state);
+
     public void Start()
     {
-        _tcpServer.Start();
-        _bluetoothServer.Start();
+        lock (_lifecycleLock)
+        {
+            if (State != RuntimeState.Created)
+            {
+                throw new InvalidOperationException(
+                    $"Agent runtime cannot start from state {State}.");
+            }
+
+            Volatile.Write(ref _state, (int)RuntimeState.Starting);
+            try
+            {
+                _tcpServer.Start();
+                _bluetoothServer.Start();
+                Volatile.Write(ref _state, (int)RuntimeState.Running);
+            }
+            catch
+            {
+                Volatile.Write(ref _state, (int)RuntimeState.Stopping);
+                RollbackFailedStart();
+                Volatile.Write(ref _state, (int)RuntimeState.Stopped);
+                throw;
+            }
+        }
     }
 
     public bool DisconnectActiveClient()
@@ -74,16 +107,35 @@ internal sealed class AgentRuntime
 
     public Task StopAsync(CancellationToken cancellationToken = default)
     {
-        lock (_stopLock)
+        lock (_lifecycleLock)
         {
             if (_stopTask is not null)
             {
                 return _stopTask;
             }
 
+            Volatile.Write(ref _state, (int)RuntimeState.Stopping);
             _stopTask = StopCoreAsync(cancellationToken);
             return _stopTask;
         }
+    }
+
+    private void RollbackFailedStart()
+    {
+        try
+        {
+            StopCoreAsync(CancellationToken.None).GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            // Preserve the original startup exception. StopCoreAsync has already attempted
+            // both transports and disposed every resource in its finally block.
+            AppLogger.Error("Agent runtime rollback failed after startup error.", ex);
+        }
+
+        // A failed start is terminal for this process-level runtime. Future StopAsync calls
+        // remain safe and do not execute a second shutdown pass.
+        _stopTask = Task.CompletedTask;
     }
 
     private async Task StopCoreAsync(CancellationToken cancellationToken)
@@ -115,6 +167,7 @@ internal sealed class AgentRuntime
             DisposeResource(_bluetoothServer, "Bluetooth server");
             DisposeResource(_tcpServer, "TCP server");
 
+            Volatile.Write(ref _state, (int)RuntimeState.Stopped);
             AppLogger.Info($"Agent runtime stopped in {startedAt.ElapsedMilliseconds} ms.");
         }
     }

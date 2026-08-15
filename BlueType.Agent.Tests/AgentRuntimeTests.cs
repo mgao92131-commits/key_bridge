@@ -8,6 +8,91 @@ namespace BlueType.Agent.Tests;
 public sealed class AgentRuntimeTests
 {
     [Fact]
+    public async Task Start_StartsBothTransportsAndEntersRunningState()
+    {
+        using var fixture = RuntimeFixture.Create();
+
+        fixture.Runtime.Start();
+
+        Assert.Equal(RuntimeState.Running, fixture.Runtime.State);
+        Assert.Equal(1, fixture.Tcp.StartCallCount);
+        Assert.Equal(1, fixture.Bluetooth.StartCallCount);
+
+        await fixture.Runtime.StopAsync();
+
+        Assert.Equal(RuntimeState.Stopped, fixture.Runtime.State);
+    }
+
+    [Fact]
+    public async Task Start_Twice_ThrowsAndDoesNotStartTransportsAgain()
+    {
+        using var fixture = RuntimeFixture.Create();
+
+        fixture.Runtime.Start();
+
+        var exception = Assert.Throws<InvalidOperationException>(() => fixture.Runtime.Start());
+
+        Assert.Contains("Running", exception.Message);
+        Assert.Equal(1, fixture.Tcp.StartCallCount);
+        Assert.Equal(1, fixture.Bluetooth.StartCallCount);
+
+        await fixture.Runtime.StopAsync();
+    }
+
+    [Fact]
+    public async Task Start_WhenBluetoothFails_RollsBackTcpAndStopsRuntime()
+    {
+        using var fixture = RuntimeFixture.Create(
+            bluetoothStartException: new InvalidOperationException("Bluetooth start failed."));
+
+        var exception = Assert.Throws<InvalidOperationException>(() => fixture.Runtime.Start());
+
+        Assert.Equal("Bluetooth start failed.", exception.Message);
+        Assert.Equal(RuntimeState.Stopped, fixture.Runtime.State);
+        Assert.Equal(1, fixture.Tcp.StartCallCount);
+        Assert.Equal(1, fixture.Bluetooth.StartCallCount);
+        Assert.Equal(1, fixture.Tcp.StopCallCount);
+        Assert.Equal(1, fixture.Bluetooth.StopCallCount);
+        Assert.Equal(1, fixture.Input.DisposeCallCount);
+        Assert.Equal(1, fixture.Clipboard.DisposeCallCount);
+        Assert.Equal(1, fixture.ShortcutProfiles.DisposeCallCount);
+        Assert.Equal(1, fixture.Tcp.DisposeCallCount);
+        Assert.Equal(1, fixture.Bluetooth.DisposeCallCount);
+
+        await fixture.Runtime.StopAsync();
+
+        Assert.Equal(1, fixture.Tcp.StopCallCount);
+        Assert.Equal(1, fixture.Bluetooth.StopCallCount);
+    }
+
+    [Fact]
+    public async Task Start_AfterStop_ThrowsAndDoesNotRestartTransports()
+    {
+        using var fixture = RuntimeFixture.Create();
+
+        await fixture.Runtime.StopAsync();
+
+        var exception = Assert.Throws<InvalidOperationException>(() => fixture.Runtime.Start());
+
+        Assert.Contains("Stopped", exception.Message);
+        Assert.Equal(0, fixture.Tcp.StartCallCount);
+        Assert.Equal(0, fixture.Bluetooth.StartCallCount);
+    }
+
+    [Fact]
+    public async Task StopAsync_WithoutStart_CompletesWithinTimeout()
+    {
+        using var fixture = RuntimeFixture.Create();
+
+        var stopTask = fixture.Runtime.StopAsync();
+        var completed = await Task.WhenAny(stopTask, Task.Delay(TimeSpan.FromSeconds(1)));
+
+        Assert.Same(stopTask, completed);
+        await stopTask;
+        Assert.Equal(RuntimeState.Stopped, fixture.Runtime.State);
+    }
+
+    [Fact]
     public async Task StopAsync_IsIdempotent()
     {
         using var fixture = RuntimeFixture.Create();
@@ -132,16 +217,23 @@ public sealed class AgentRuntimeTests
 
         public FakeTransport Bluetooth { get; }
 
-        public static RuntimeFixture Create(Exception? bluetoothStopException = null)
+        public static RuntimeFixture Create(
+            Exception? bluetoothStopException = null,
+            Exception? tcpStartException = null,
+            Exception? bluetoothStartException = null)
         {
             var input = new TrackingDisposable();
             var clipboard = new TrackingDisposable();
             var shortcutProfiles = new TrackingDisposable();
             var sessions = new ActiveSessionManager();
-            var tcp = new FakeTransport();
+            var tcp = new FakeTransport
+            {
+                StartException = tcpStartException,
+            };
             var bluetooth = new FakeTransport
             {
                 StopException = bluetoothStopException,
+                StartException = bluetoothStartException,
             };
             var runtime = new AgentRuntime(
                 input,
@@ -196,20 +288,30 @@ public sealed class AgentRuntimeTests
 
         public Exception? StopException { get; set; }
 
+        public Exception? StartException { get; set; }
+
         public bool DisconnectResult { get; set; }
 
         public int StopCallCount => Volatile.Read(ref _stopCallCount);
+
+        public int StartCallCount => Volatile.Read(ref _startCallCount);
 
         public int DisposeCallCount => Volatile.Read(ref _disposeCallCount);
 
         public int DisconnectCallCount => Volatile.Read(ref _disconnectCallCount);
 
         private int _stopCallCount;
+        private int _startCallCount;
         private int _disposeCallCount;
         private int _disconnectCallCount;
 
         public void Start()
         {
+            Interlocked.Increment(ref _startCallCount);
+            if (StartException is not null)
+            {
+                throw StartException;
+            }
         }
 
         public Task StopAsync(CancellationToken cancellationToken = default)
