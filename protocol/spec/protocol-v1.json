@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "commands": [
+    "hello",
+    "text_insert",
+    "key_tap",
+    "key_down",
+    "key_up",
+    "combo",
+    "mouse_move",
+    "mouse_button",
+    "mouse_click",
+    "mouse_scroll",
+    "clipboard_set",
+    "clipboard_get",
+    "ping"
+  ],
+  "responses": [
+    "pong",
+    "ack",
+    "error",
+    "auth_pending",
+    "auth_result",
+    "clipboard_value",
+    "shortcut_profile"
+  ],
+  "errorCodes": [
+    "BUSY",
+    "NOT_AUTHORIZED",
+    "AUTH_TIMEOUT",
+    "AUTH_UI_UNAVAILABLE",
+    "INVALID_PAYLOAD",
+    "SERVER_ERROR",
+    "SESSION_REPLACED",
+    "INPUT_BLOCKED",
+    "CLIPBOARD_FAILED"
+  ]
+}
