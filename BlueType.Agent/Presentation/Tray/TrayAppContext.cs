@@ -9,7 +9,7 @@ internal sealed class TrayAppContext : ApplicationContext
 {
     private readonly SynchronizationContext _syncContext;
     private readonly AuthorizationPromptPresenter _authorizationPrompt;
-    private readonly AgentApplicationHost _applicationHost;
+    private readonly AgentRuntime _runtime;
     private readonly NotifyIcon _notifyIcon;
     private readonly ToolStripMenuItem _statusMenuItem;
     private readonly ToolStripMenuItem _disconnectMenuItem;
@@ -24,11 +24,14 @@ internal sealed class TrayAppContext : ApplicationContext
     private string _lastServerMessage = string.Empty;
     private int _isShuttingDown;
 
-    public TrayAppContext()
+    public TrayAppContext(
+        AgentRuntime runtime,
+        AuthorizationPromptPresenter authorizationPrompt,
+        SynchronizationContext synchronizationContext)
     {
-        _syncContext = SynchronizationContext.Current ?? new WindowsFormsSynchronizationContext();
-        _authorizationPrompt = new AuthorizationPromptPresenter(_syncContext);
-        _applicationHost = new AgentApplicationHost(_authorizationPrompt.ShowAsync);
+        _syncContext = synchronizationContext;
+        _authorizationPrompt = authorizationPrompt;
+        _runtime = runtime;
         _settingsForm = new SettingsForm(DisconnectActiveClient);
         _iconGenerator = new TrayIconGenerator();
 
@@ -71,10 +74,10 @@ internal sealed class TrayAppContext : ApplicationContext
         ThemeHelper.ApplyToContextMenu(_notifyIcon.ContextMenuStrip);
 
         _notifyIcon.DoubleClick += OnOpenSettings;
-        _applicationHost.ConnectionStateChanged += HandleConnectionStateChanged;
-        _applicationHost.ServerMessage += HandleServerMessage;
+        _runtime.ConnectionStateChanged += HandleConnectionStateChanged;
+        _runtime.ServerMessage += HandleServerMessage;
         UpdateStatus(ConnectionState.Listening);
-        _applicationHost.Start();
+        _runtime.Start();
     }
 
     private void OnOpenSettings(object? sender, EventArgs e)
@@ -119,7 +122,7 @@ internal sealed class TrayAppContext : ApplicationContext
             AppLogger.Info("Closing authorization prompt.");
             _authorizationPrompt.CloseActivePrompt();
 
-            await _applicationHost.StopAsync();
+            await _runtime.StopAsync();
         }
         catch (Exception ex)
         {
@@ -194,7 +197,7 @@ internal sealed class TrayAppContext : ApplicationContext
 
     private void DisconnectActiveClient()
     {
-        _applicationHost.DisconnectActiveClient();
+        _runtime.DisconnectActiveClient();
     }
 
     private static bool CanDisconnect(ConnectionState state)
@@ -218,8 +221,8 @@ internal sealed class TrayAppContext : ApplicationContext
         _iconGenerator.Dispose();
         _settingsForm.Dispose();
 
-        // Host should already be stopped in OnExit; Dispose is an idempotent safety net.
-        _applicationHost.Dispose();
+        // Runtime should already be stopped in OnExit; Dispose is an idempotent safety net.
+        _runtime.Dispose();
 
         AppLogger.Info("Tray resources disposed.");
         base.ExitThreadCore();

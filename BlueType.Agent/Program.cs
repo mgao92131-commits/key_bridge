@@ -1,3 +1,5 @@
+using BlueType.Agent.Bootstrap;
+using BlueType.Agent.Host;
 using BlueType.Agent.Infrastructure.Logging;
 using BlueType.Agent.Infrastructure.Persistence;
 using BlueType.Agent.Presentation.Tray;
@@ -33,7 +35,11 @@ internal static class Program
         AppLogger.Info("BlueType Agent starting.");
         try
         {
-        System.Windows.Forms.Application.Run(new TrayAppContext());
+            var synchronizationContext = SynchronizationContext.Current ?? new WindowsFormsSynchronizationContext();
+            var authorizationPrompt = new AuthorizationPromptPresenter(synchronizationContext);
+            var runtime = AgentCompositionRoot.Create(authorizationPrompt.ShowAsync);
+            System.Windows.Forms.Application.Run(
+                new TrayAppContext(runtime, authorizationPrompt, synchronizationContext));
         }
         finally
         {
