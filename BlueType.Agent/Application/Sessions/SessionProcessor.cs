@@ -11,10 +11,9 @@ namespace BlueType.Agent.Application.Sessions;
 internal sealed class SessionProcessor
 {
     private readonly CommandRouter _commandRouter;
-    private readonly SessionHelloHandler _helloHandler;
+    private readonly SessionHandshake _handshake;
     private readonly SessionHeartbeat _heartbeat;
     private readonly ActiveSessionManager _activeSessionManager;
-    private readonly IShortcutProfileDispatcher _shortcutProfiles;
     private readonly SessionCleanup _cleanup;
 
     public SessionProcessor(
@@ -63,10 +62,10 @@ internal sealed class SessionProcessor
         SessionHeartbeat heartbeat)
     {
         _commandRouter = commandRouter;
-        _helloHandler = new SessionHelloHandler(commandRouter, authService, activeSessionManager, promptAsync);
+        var helloHandler = new SessionHelloHandler(commandRouter, authService, activeSessionManager, promptAsync);
+        _handshake = new SessionHandshake(helloHandler, shortcutProfiles);
         _heartbeat = heartbeat;
         _activeSessionManager = activeSessionManager;
-        _shortcutProfiles = shortcutProfiles;
         _cleanup = new SessionCleanup(activeSessionManager, shortcutProfiles, inputRelease);
     }
 
@@ -128,33 +127,25 @@ internal sealed class SessionProcessor
                     continue;
                 }
 
-                if (string.Equals(envelope.Type, BlueType.Protocol.Commands.Hello, StringComparison.Ordinal))
+                var handshakeResult = await _handshake.TryHandleAsync(
+                    session,
+                    envelope,
+                    lifecycle,
+                    remoteAddress,
+                    transport,
+                    onState,
+                    onMessage,
+                    sessionId,
+                    disconnectCurrentSession,
+                    sessionToken);
+                if (handshakeResult == HandshakeResult.Continue)
                 {
-                    if (lifecycle.IsAuthorized)
-                    {
-                        await session.WriteAsync(lifecycle.CreateDuplicateHelloError(envelope.Id), sessionToken);
-                        continue;
-                    }
-
-                    var authorized = await _helloHandler.HandleAsync(
-                        session,
-                        envelope,
-                        remoteAddress,
-                        transport,
-                        onState,
-                        onMessage,
-                        sessionId,
-                        disconnectCurrentSession,
-                        sessionToken);
-
-                    if (!authorized)
-                    {
-                        break;
-                    }
-
-                    lifecycle.MarkAuthorized();
-                    _shortcutProfiles.RegisterSession(sessionId, session);
                     continue;
+                }
+
+                if (handshakeResult == HandshakeResult.Terminate)
+                {
+                    break;
                 }
 
                 Envelope response;
