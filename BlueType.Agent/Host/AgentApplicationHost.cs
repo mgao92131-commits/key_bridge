@@ -1,8 +1,7 @@
 using System.Diagnostics;
-using BlueType.Agent.Transport.Bluetooth;
+using BlueType.Agent.Bootstrap;
 using BlueType.Agent.Application.Commands;
-using BlueType.Agent.Application.Authorization;
-using BlueType.Agent.Domain.Devices;
+using BlueType.Agent.Transport.Bluetooth;
 using BlueType.Agent.Infrastructure.Clipboard;
 using BlueType.Agent.Infrastructure.Input;
 using BlueType.Agent.Infrastructure.Logging;
@@ -25,19 +24,18 @@ internal sealed class AgentApplicationHost : IDisposable
     private int _stopped;
 
     public AgentApplicationHost(Func<AuthPromptRequest, CancellationToken, Task<AuthPromptDecision>> promptForAuthorizationAsync)
+        : this(AgentCompositionRoot.Create(promptForAuthorizationAsync))
     {
-        _inputInjector = new InputInjector();
-        _clipboardService = new ClipboardService();
-        _shortcutProfiles = new ShortcutProfileDispatcher();
+    }
 
-        var deviceRegistry = new DeviceRegistry();
-        var commandRouter = new CommandRouter(_inputInjector, _clipboardService);
-        var authService = new AuthService(deviceRegistry, promptForAuthorizationAsync);
-        _activeSessionManager = new ActiveSessionManager();
-        var sessionProcessor = new SessionProcessor(commandRouter, authService, _inputInjector, _activeSessionManager, _shortcutProfiles, promptForAuthorizationAsync);
-
-        _tcpServer = new TcpServer(sessionProcessor);
-        _bluetoothServer = new BluetoothServer(sessionProcessor);
+    internal AgentApplicationHost(AgentCompositionRoot.Components components)
+    {
+        _inputInjector = components.InputInjector;
+        _clipboardService = components.ClipboardService;
+        _shortcutProfiles = components.ShortcutProfiles;
+        _activeSessionManager = components.ActiveSessionManager;
+        _tcpServer = components.TcpServer;
+        _bluetoothServer = components.BluetoothServer;
 
         _tcpServer.ConnectionStateChanged += ForwardConnectionStateChanged;
         _tcpServer.ServerMessage += ForwardServerMessage;
