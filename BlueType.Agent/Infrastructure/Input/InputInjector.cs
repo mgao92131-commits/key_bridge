@@ -14,12 +14,13 @@ internal interface IInputRelease
 internal sealed class InputInjector : IDisposable, IInputService, IInputRelease
 {
     private readonly InputExecutionQueue _executionQueue;
-    private readonly Dictionary<ushort, KeyDefinition> _pressedKeys = new();
     private readonly HashSet<string> _pressedMouseButtons = new(StringComparer.OrdinalIgnoreCase);
+    private readonly WindowsKeyboardInjector _keyboard;
 
     public InputInjector()
     {
         _executionQueue = new InputExecutionQueue();
+        _keyboard = new WindowsKeyboardInjector();
     }
 
     public Task SendTextAsync(string text, CancellationToken cancellationToken = default)
@@ -29,27 +30,27 @@ internal sealed class InputInjector : IDisposable, IInputService, IInputRelease
             return Task.CompletedTask;
         }
 
-        return EnqueueAsync(() => SendTextCore(text), cancellationToken);
+        return EnqueueAsync(() => _keyboard.SendText(text), cancellationToken);
     }
 
     public Task TapKeyAsync(string key, CancellationToken cancellationToken = default)
     {
-        return EnqueueAsync(() => TapKeyCore(key), cancellationToken);
+        return EnqueueAsync(() => _keyboard.TapKey(key), cancellationToken);
     }
 
     public Task PressKeyAsync(string key, CancellationToken cancellationToken = default)
     {
-        return EnqueueAsync(() => PressKeyCore(key), cancellationToken);
+        return EnqueueAsync(() => _keyboard.PressKey(key), cancellationToken);
     }
 
     public Task ReleaseKeyAsync(string key, CancellationToken cancellationToken = default)
     {
-        return EnqueueAsync(() => ReleaseKeyCore(key), cancellationToken);
+        return EnqueueAsync(() => _keyboard.ReleaseKey(key), cancellationToken);
     }
 
     public Task ReleaseAllKeysAsync(CancellationToken cancellationToken = default)
     {
-        return EnqueueAsync(ReleaseAllKeysCore, cancellationToken);
+        return EnqueueAsync(_keyboard.ReleaseAll, cancellationToken);
     }
 
     public Task SendComboAsync(IReadOnlyList<string> keys, CancellationToken cancellationToken = default)
@@ -59,7 +60,7 @@ internal sealed class InputInjector : IDisposable, IInputService, IInputRelease
             return Task.CompletedTask;
         }
 
-        return EnqueueAsync(() => SendComboCore(keys), cancellationToken);
+        return EnqueueAsync(() => _keyboard.SendCombo(keys), cancellationToken);
     }
 
     public Task MoveMouseAsync(int dx, int dy, CancellationToken cancellationToken = default)
@@ -133,136 +134,6 @@ internal sealed class InputInjector : IDisposable, IInputService, IInputRelease
     private async Task EnqueueAsync(Action action, CancellationToken cancellationToken)
     {
         await _executionQueue.EnqueueAsync(action, cancellationToken);
-    }
-
-    private static void SendTextCore(string text)
-    {
-        var inputs = new List<Win32.INPUT>(text.Length * 2);
-
-        foreach (var ch in text)
-        {
-            inputs.Add(CreateUnicodeInput(ch, keyUp: false));
-            inputs.Add(CreateUnicodeInput(ch, keyUp: true));
-        }
-
-        SendInputs(inputs);
-    }
-
-    private void TapKeyCore(string key)
-    {
-        var definition = ResolveKey(key);
-        if (_pressedKeys.ContainsKey(definition.VirtualKey))
-        {
-            throw new InvalidOperationException($"Key is already pressed: {key}");
-        }
-
-        if (definition.IsModifier && KeyMap.IsModifierPressed(key))
-        {
-            throw new InvalidOperationException($"Modifier key is already pressed: {key}");
-        }
-
-        var inputs = new[]
-        {
-            CreateVirtualKeyInput(definition, keyUp: false),
-            CreateVirtualKeyInput(definition, keyUp: true),
-        };
-
-        SendInputs(inputs);
-    }
-
-    private void PressKeyCore(string key)
-    {
-        var definition = ResolveKey(key);
-        if (_pressedKeys.ContainsKey(definition.VirtualKey))
-        {
-            return;
-        }
-
-        if (definition.IsModifier && KeyMap.IsModifierPressed(key))
-        {
-            throw new InvalidOperationException($"Modifier key is already pressed: {key}");
-        }
-
-        SendInputs([CreateVirtualKeyInput(definition, keyUp: false)]);
-        _pressedKeys[definition.VirtualKey] = definition;
-    }
-
-    private void ReleaseKeyCore(string key)
-    {
-        var definition = ResolveKey(key);
-        if (!_pressedKeys.TryGetValue(definition.VirtualKey, out var pressedDefinition))
-        {
-            return;
-        }
-
-        SendInputs([CreateVirtualKeyInput(pressedDefinition, keyUp: true)]);
-        _pressedKeys.Remove(definition.VirtualKey);
-    }
-
-    private void ReleaseAllKeysCore()
-    {
-        if (_pressedKeys.Count == 0)
-        {
-            return;
-        }
-
-        var inputs = _pressedKeys.Values
-            .OrderByDescending(definition => definition.VirtualKey)
-            .Select(definition => CreateVirtualKeyInput(definition, keyUp: true))
-            .ToArray();
-
-        SendInputs(inputs);
-        _pressedKeys.Clear();
-    }
-
-    private void SendComboCore(IReadOnlyList<string> keys)
-    {
-        var resolved = keys.Select(ResolveKey).ToArray();
-        var modifiers = resolved.Where(definition => definition.IsModifier).ToArray();
-        var newModifiers = modifiers
-            .Where(definition => !_pressedKeys.ContainsKey(definition.VirtualKey))
-            .ToArray();
-
-        foreach (var modifier in newModifiers)
-        {
-            if ((Win32.GetAsyncKeyState(modifier.VirtualKey) & 0x8000) != 0)
-            {
-                throw new InvalidOperationException($"Modifier key is already pressed: {modifier.VirtualKey}");
-            }
-        }
-
-        var mainKeys = resolved.Where(definition => !definition.IsModifier).ToArray();
-        if (mainKeys.Length == 0)
-        {
-            throw new InvalidOperationException("Combo must include at least one non-modifier key.");
-        }
-
-        foreach (var mainKey in mainKeys)
-        {
-            if (_pressedKeys.ContainsKey(mainKey.VirtualKey))
-            {
-                throw new InvalidOperationException($"Key is already pressed: {mainKey.VirtualKey}");
-            }
-        }
-
-        var inputs = new List<Win32.INPUT>(resolved.Length * 2);
-        foreach (var modifier in newModifiers)
-        {
-            inputs.Add(CreateVirtualKeyInput(modifier, keyUp: false));
-        }
-
-        foreach (var mainKey in mainKeys)
-        {
-            inputs.Add(CreateVirtualKeyInput(mainKey, keyUp: false));
-            inputs.Add(CreateVirtualKeyInput(mainKey, keyUp: true));
-        }
-
-        foreach (var modifier in newModifiers.Reverse())
-        {
-            inputs.Add(CreateVirtualKeyInput(modifier, keyUp: true));
-        }
-
-        SendInputs(inputs);
     }
 
     private static void MoveMouseCore(int dx, int dy)
@@ -346,56 +217,6 @@ internal sealed class InputInjector : IDisposable, IInputService, IInputRelease
         }
 
         SendInputs(inputs);
-    }
-
-    private static KeyDefinition ResolveKey(string key)
-    {
-        if (!KeyMap.TryResolve(key, out var definition))
-        {
-            throw new InvalidOperationException($"Unsupported key: {key}");
-        }
-
-        return definition;
-    }
-
-    private static Win32.INPUT CreateUnicodeInput(char ch, bool keyUp)
-    {
-        return new Win32.INPUT
-        {
-            type = Win32.InputKeyboard,
-            U = new Win32.InputUnion
-            {
-                ki = new Win32.KEYBDINPUT
-                {
-                    wVk = 0,
-                    wScan = ch,
-                    dwFlags = Win32.KeyEventFUnicode | (keyUp ? Win32.KeyEventFKeyUp : 0),
-                },
-            },
-        };
-    }
-
-    private static Win32.INPUT CreateVirtualKeyInput(KeyDefinition definition, bool keyUp)
-    {
-        var flags = definition.IsExtended ? Win32.KeyEventFExtendedKey : 0;
-        if (keyUp)
-        {
-            flags |= Win32.KeyEventFKeyUp;
-        }
-
-        return new Win32.INPUT
-        {
-            type = Win32.InputKeyboard,
-            U = new Win32.InputUnion
-            {
-                ki = new Win32.KEYBDINPUT
-                {
-                    wVk = definition.VirtualKey,
-                    wScan = 0,
-                    dwFlags = flags,
-                },
-            },
-        };
     }
 
     private static Win32.INPUT CreateMouseMoveInput(int dx, int dy)
