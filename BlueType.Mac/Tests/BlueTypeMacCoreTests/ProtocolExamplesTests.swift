@@ -65,11 +65,43 @@ final class ProtocolExamplesTests: XCTestCase {
         }
     }
 
+    func testFrameFixturesEncodeAndDecodeWithCanonicalBytes() throws {
+        let framesDirectory = try findSpecDirectory().appendingPathComponent("frames")
+        let frameFiles = try FileManager.default.contentsOfDirectory(
+            at: framesDirectory,
+            includingPropertiesForKeys: nil
+        )
+            .filter { $0.pathExtension == "json" }
+            .sorted { $0.lastPathComponent < $1.lastPathComponent }
+
+        XCTAssertFalse(frameFiles.isEmpty)
+
+        for file in frameFiles {
+            let fixture = try JSONDecoder().decode(FrameFixture.self, from: Data(contentsOf: file))
+            let expected = try JSONDecoder().decode(Envelope.self, from: Data(fixture.json.utf8))
+            let expectedFrame = try dataFromHex(fixture.frameHex)
+            let decoded = try FrameCodec.decodePayload(expectedFrame.dropFirst(4))
+
+            XCTAssertEqual(decoded, expected, file.lastPathComponent)
+            XCTAssertEqual(frameLength(expectedFrame), expectedFrame.count - 4, file.lastPathComponent)
+
+            let encoded = try FrameCodec.encode(expected)
+            XCTAssertEqual(frameLength(encoded), encoded.count - 4, file.lastPathComponent)
+            let redecoded = try FrameCodec.decodePayload(encoded.dropFirst(4))
+            XCTAssertEqual(redecoded, expected, file.lastPathComponent)
+        }
+    }
+
     private struct ProtocolManifest: Decodable {
         let version: Int
         let commands: [String]
         let responses: [String]
         let errorCodes: [String]
+    }
+
+    private struct FrameFixture: Decodable {
+        let json: String
+        let frameHex: String
     }
 
     private func readManifest() throws -> ProtocolManifest {
@@ -170,6 +202,27 @@ final class ProtocolExamplesTests: XCTestCase {
     private func oneOf(_ object: [String: Any], _ name: String, values: [String]) -> Bool {
         guard let value = stringField(object, name) else { return false }
         return values.contains(value)
+    }
+
+    private func dataFromHex(_ hex: String) throws -> Data {
+        let bytes = Array(hex.utf8)
+        guard bytes.count.isMultiple(of: 2) else {
+            throw NSError(domain: "BlueTypeMacCoreTests", code: 2, userInfo: [NSLocalizedDescriptionKey: "Frame hex has an incomplete byte."])
+        }
+
+        var data = Data()
+        for index in stride(from: 0, to: bytes.count, by: 2) {
+            let pair = String(bytes: bytes[index..<(index + 2)], encoding: .utf8)!
+            guard let value = UInt8(pair, radix: 16) else {
+                throw NSError(domain: "BlueTypeMacCoreTests", code: 3, userInfo: [NSLocalizedDescriptionKey: "Frame hex contains an invalid byte."])
+            }
+            data.append(value)
+        }
+        return data
+    }
+
+    private func frameLength(_ frame: Data) -> Int {
+        frame.prefix(4).reduce(0) { ($0 << 8) | Int($1) }
     }
 
     private func findSpecDirectory() throws -> URL {

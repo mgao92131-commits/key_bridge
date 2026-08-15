@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Reflection;
 using System.Text.Json;
 using BlueType.Protocol;
@@ -109,11 +110,57 @@ public sealed class ProtocolExamplesTests
         }
     }
 
+    [Fact]
+    public async Task FrameFixtures_EncodeAndDecodeWithCanonicalBytes()
+    {
+        foreach (var path in Directory.EnumerateFiles(FindFramesDirectory(), "*.json").OrderBy(Path.GetFileName))
+        {
+            var fixture = Assert.IsType<FrameFixture>(JsonSerializer.Deserialize<FrameFixture>(
+                await File.ReadAllTextAsync(path),
+                JsonProtocol.SerializerOptions));
+            var expected = Assert.IsType<Envelope>(JsonSerializer.Deserialize<Envelope>(
+                fixture.Json,
+                JsonProtocol.SerializerOptions));
+            var expectedBytes = Convert.FromHexString(fixture.FrameHex);
+
+            Assert.Equal(expectedBytes.Length - 4, BinaryPrimitives.ReadInt32BigEndian(expectedBytes.AsSpan(0, 4)));
+            using var input = new MemoryStream(expectedBytes);
+            var decoded = await FrameCodec.ReadAsync(input);
+            Assert.NotNull(decoded);
+            AssertEnvelopeEquivalent(expected, decoded);
+
+            using var output = new MemoryStream();
+            await FrameCodec.WriteAsync(output, expected);
+            var encodedBytes = output.ToArray();
+            Assert.Equal(encodedBytes.Length - 4, BinaryPrimitives.ReadInt32BigEndian(encodedBytes.AsSpan(0, 4)));
+            using var encodedStream = new MemoryStream(encodedBytes);
+            var encoded = await FrameCodec.ReadAsync(encodedStream);
+            Assert.NotNull(encoded);
+            AssertEnvelopeEquivalent(expected, encoded);
+        }
+    }
+
+    [Fact]
+    public async Task FrameCodec_RejectsOversizedAndTruncatedPayloads()
+    {
+        var oversized = JsonProtocol.CreateEnvelope(
+            "oversized-frame",
+            Commands.TextInsert,
+            new { text = new string('x', FrameCodec.MaxFrameSize) });
+        using var output = new MemoryStream();
+        await Assert.ThrowsAsync<InvalidDataException>(() => FrameCodec.WriteAsync(output, oversized));
+
+        using var truncated = new MemoryStream([0, 0, 0, 4, 1, 2]);
+        await Assert.ThrowsAsync<EndOfStreamException>(() => FrameCodec.ReadAsync(truncated));
+    }
+
     private sealed record ProtocolManifest(
         int Version,
         string[] Commands,
         string[] Responses,
         string[] ErrorCodes);
+
+    private sealed record FrameFixture(string Json, string FrameHex);
 
     private static async Task<ProtocolManifest> LoadManifestAsync()
     {
@@ -253,6 +300,11 @@ public sealed class ProtocolExamplesTests
     private static string FindInvalidDirectory()
     {
         return Path.Combine(FindSpecDirectory(), "invalid");
+    }
+
+    private static string FindFramesDirectory()
+    {
+        return Path.Combine(FindSpecDirectory(), "frames");
     }
 
     private static string FindSpecDirectory()

@@ -24,6 +24,17 @@ final class FrameCodecTests: XCTestCase {
         }
     }
 
+    func testReadRejectsTruncatedPayload() async throws {
+        let connection = MemoryConnection(readData: Data([0, 0, 0, 4, 1, 2]))
+        do {
+            _ = try await FrameCodec.readFrame(from: connection)
+            XCTFail("Expected truncated payload rejection.")
+        } catch FrameCodecError.unexpectedEOF {
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+    }
+
     func testRoundTripThroughPartialReads() async throws {
         let envelope = Envelope(id: "hello", type: MessageType.hello, payload: ["deviceId": .string("android"), "deviceName": .string("Pixel")])
         let frame = try FrameCodec.encode(envelope)

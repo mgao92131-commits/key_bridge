@@ -1,6 +1,7 @@
 package com.bluetype.android.bluetooth
 
 import java.io.ByteArrayInputStream
+import java.io.EOFException
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.isDirectory
@@ -11,6 +12,7 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -18,6 +20,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 
 class ProtocolExamplesTest {
@@ -91,6 +94,58 @@ class ProtocolExamplesTest {
         invalidExamples.forEach { path ->
             val root = ProtocolJson.parseToJsonElement(Files.readAllBytes(path).decodeToString()).jsonObject
             assertFalse(path.name, isValidEnvelope(root, manifest))
+        }
+    }
+
+    @Test
+    fun frameFixtures_encodeAndDecodeWithCanonicalBytes() {
+        val frameFixtures = Files.list(findFramesDirectory()).use { stream ->
+            stream
+                .filter { it.name.endsWith(".json") }
+                .sorted()
+                .toList()
+        }
+
+        assertFalse("Expected framing fixtures.", frameFixtures.isEmpty())
+
+        frameFixtures.forEach { path ->
+            val fixture = ProtocolJson.decodeFromString(
+                FrameFixture.serializer(),
+                Files.readAllBytes(path).decodeToString(),
+            )
+            val expected = ProtocolJson.decodeFromString(Envelope.serializer(), fixture.json)
+            val expectedBytes = hexToBytes(fixture.frameHex)
+            val decoded = FrameCodec.read(ByteArrayInputStream(expectedBytes))
+
+            assertEquals(expected, decoded)
+            assertEquals(expectedBytes.size - 4, frameLength(expectedBytes))
+
+            val encoded = FrameCodec.encode(expected)
+            assertEquals(encoded.size - 4, frameLength(encoded))
+            assertEquals(expected, FrameCodec.read(ByteArrayInputStream(encoded)))
+        }
+    }
+
+    @Test
+    fun framing_rejectsOversizedAndTruncatedPayloads() {
+        val oversized = Envelope(
+            id = "oversized-frame",
+            type = MsgType.TEXT_INSERT.wireName,
+            payload = buildJsonObject {
+                put("text", JsonPrimitive("x".repeat(FrameCodec.MAX_FRAME_SIZE)))
+            },
+        )
+
+        try {
+            FrameCodec.encode(oversized)
+            fail("Expected oversized frame rejection.")
+        } catch (_: IllegalArgumentException) {
+        }
+
+        try {
+            FrameCodec.read(ByteArrayInputStream(byteArrayOf(0, 0, 0, 4, 1, 2)))
+            fail("Expected truncated frame rejection.")
+        } catch (_: EOFException) {
         }
     }
 
@@ -204,11 +259,34 @@ class ProtocolExamplesTest {
 
     private fun findInvalidDirectory(): Path = findSpecDirectory().resolve("invalid")
 
+    private fun findFramesDirectory(): Path = findSpecDirectory().resolve("frames")
+
+    private fun hexToBytes(value: String): ByteArray {
+        require(value.length % 2 == 0) { "Frame hex must contain complete bytes." }
+        return ByteArray(value.length / 2) { index ->
+            value.substring(index * 2, index * 2 + 2).toInt(16).toByte()
+        }
+    }
+
+    private fun frameLength(frame: ByteArray): Int {
+        require(frame.size >= 4) { "Frame must contain a length prefix." }
+        return ((frame[0].toInt() and 0xff) shl 24) or
+            ((frame[1].toInt() and 0xff) shl 16) or
+            ((frame[2].toInt() and 0xff) shl 8) or
+            (frame[3].toInt() and 0xff)
+    }
+
     @Serializable
     private data class ProtocolManifest(
         val version: Int,
         val commands: List<String>,
         val responses: List<String>,
         val errorCodes: List<String>,
+    )
+
+    @Serializable
+    private data class FrameFixture(
+        val json: String,
+        val frameHex: String,
     )
 }
