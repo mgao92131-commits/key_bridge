@@ -1,11 +1,16 @@
-using System.Runtime.InteropServices;
 using BlueType.Agent.Native;
 
 namespace BlueType.Agent.Infrastructure.Input;
 
 internal sealed class WindowsKeyboardInjector
 {
+    private readonly IWindowsInputSender _sender;
     private readonly Dictionary<ushort, KeyDefinition> _pressedKeys = new();
+
+    public WindowsKeyboardInjector(IWindowsInputSender sender)
+    {
+        _sender = sender;
+    }
 
     public void SendText(string text)
     {
@@ -17,7 +22,7 @@ internal sealed class WindowsKeyboardInjector
             inputs.Add(CreateUnicodeInput(ch, keyUp: true));
         }
 
-        SendInputs(inputs);
+        _sender.Send(inputs);
     }
 
     public void TapKey(string key)
@@ -39,7 +44,7 @@ internal sealed class WindowsKeyboardInjector
             CreateVirtualKeyInput(definition, keyUp: true),
         };
 
-        SendInputs(inputs);
+        _sender.Send(inputs);
     }
 
     public void PressKey(string key)
@@ -55,7 +60,7 @@ internal sealed class WindowsKeyboardInjector
             throw new InvalidOperationException($"Modifier key is already pressed: {key}");
         }
 
-        SendInputs([CreateVirtualKeyInput(definition, keyUp: false)]);
+        _sender.Send([CreateVirtualKeyInput(definition, keyUp: false)]);
         _pressedKeys[definition.VirtualKey] = definition;
     }
 
@@ -67,7 +72,7 @@ internal sealed class WindowsKeyboardInjector
             return;
         }
 
-        SendInputs([CreateVirtualKeyInput(pressedDefinition, keyUp: true)]);
+        _sender.Send([CreateVirtualKeyInput(pressedDefinition, keyUp: true)]);
         _pressedKeys.Remove(definition.VirtualKey);
     }
 
@@ -83,7 +88,7 @@ internal sealed class WindowsKeyboardInjector
             .Select(definition => CreateVirtualKeyInput(definition, keyUp: true))
             .ToArray();
 
-        SendInputs(inputs);
+        _sender.Send(inputs);
         _pressedKeys.Clear();
     }
 
@@ -134,7 +139,7 @@ internal sealed class WindowsKeyboardInjector
             inputs.Add(CreateVirtualKeyInput(modifier, keyUp: true));
         }
 
-        SendInputs(inputs);
+        _sender.Send(inputs);
     }
 
     private static KeyDefinition ResolveKey(string key)
@@ -187,13 +192,4 @@ internal sealed class WindowsKeyboardInjector
         };
     }
 
-    private static void SendInputs(IReadOnlyList<Win32.INPUT> inputs)
-    {
-        var sent = Win32.SendInput((uint)inputs.Count, inputs.ToArray(), Marshal.SizeOf<Win32.INPUT>());
-        if (sent != inputs.Count)
-        {
-            throw new InvalidOperationException(
-                $"SendInput failed or was blocked. sent={sent} expected={inputs.Count} win32={Marshal.GetLastWin32Error()}");
-        }
-    }
 }

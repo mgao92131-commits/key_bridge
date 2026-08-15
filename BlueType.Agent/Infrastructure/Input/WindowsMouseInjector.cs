@@ -1,11 +1,16 @@
-using System.Runtime.InteropServices;
 using BlueType.Agent.Native;
 
 namespace BlueType.Agent.Infrastructure.Input;
 
 internal sealed class WindowsMouseInjector
 {
+    private readonly IWindowsInputSender _sender;
     private readonly HashSet<string> _pressedMouseButtons = new(StringComparer.OrdinalIgnoreCase);
+
+    public WindowsMouseInjector(IWindowsInputSender sender)
+    {
+        _sender = sender;
+    }
 
     public void Move(int dx, int dy)
     {
@@ -14,7 +19,7 @@ internal sealed class WindowsMouseInjector
             CreateMouseMoveInput(dx, dy),
         };
 
-        SendInputs(inputs);
+        _sender.Send(inputs);
     }
 
     public void Click(string button, int repeat)
@@ -32,7 +37,7 @@ internal sealed class WindowsMouseInjector
             inputs.Add(CreateMouseButtonInput(definition.UpFlag));
         }
 
-        SendInputs(inputs);
+        _sender.Send(inputs);
     }
 
     public void SetButtonState(string button, bool isDown)
@@ -44,7 +49,7 @@ internal sealed class WindowsMouseInjector
             return;
         }
 
-        SendInputs([CreateMouseButtonInput(isDown ? definition.DownFlag : definition.UpFlag)]);
+        _sender.Send([CreateMouseButtonInput(isDown ? definition.DownFlag : definition.UpFlag)]);
         if (isDown)
         {
             _pressedMouseButtons.Add(definition.Name);
@@ -70,7 +75,7 @@ internal sealed class WindowsMouseInjector
             inputs.Add(CreateMouseButtonInput(definition.UpFlag));
         }
 
-        SendInputs(inputs);
+        _sender.Send(inputs);
         _pressedMouseButtons.Clear();
     }
 
@@ -87,7 +92,7 @@ internal sealed class WindowsMouseInjector
             inputs.Add(CreateMouseWheelInput(deltaX * Win32.MouseWheelDelta, horizontal: true));
         }
 
-        SendInputs(inputs);
+        _sender.Send(inputs);
     }
 
     private static Win32.INPUT CreateMouseMoveInput(int dx, int dy)
@@ -148,16 +153,6 @@ internal sealed class WindowsMouseInjector
             "MIDDLE" => new MouseButtonDefinition("MIDDLE", Win32.MouseEventFMiddleDown, Win32.MouseEventFMiddleUp),
             _ => throw new InvalidOperationException($"Unsupported mouse button: {button}"),
         };
-    }
-
-    private static void SendInputs(IReadOnlyList<Win32.INPUT> inputs)
-    {
-        var sent = Win32.SendInput((uint)inputs.Count, inputs.ToArray(), Marshal.SizeOf<Win32.INPUT>());
-        if (sent != inputs.Count)
-        {
-            throw new InvalidOperationException(
-                $"SendInput failed or was blocked. sent={sent} expected={inputs.Count} win32={Marshal.GetLastWin32Error()}");
-        }
     }
 
     private readonly record struct MouseButtonDefinition(string Name, uint DownFlag, uint UpFlag);

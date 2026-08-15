@@ -18,8 +18,9 @@ internal sealed class InputInjector : IDisposable, IInputService, IInputRelease
     public InputInjector()
     {
         _executionQueue = new InputExecutionQueue();
-        _keyboard = new WindowsKeyboardInjector();
-        _mouse = new WindowsMouseInjector();
+        var sender = new WindowsInputSender();
+        _keyboard = new WindowsKeyboardInjector(sender);
+        _mouse = new WindowsMouseInjector(sender);
     }
 
     public Task SendTextAsync(string text, CancellationToken cancellationToken = default)

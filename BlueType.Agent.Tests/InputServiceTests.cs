@@ -1,4 +1,5 @@
 using BlueType.Agent.Infrastructure.Input;
+using BlueType.Agent.Native;
 
 namespace BlueType.Agent.Tests;
 
@@ -55,5 +56,58 @@ public sealed class InputServiceTests
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => input.PressKeyAsync("A", cancellation.Token));
+    }
+
+    [Fact]
+    public void KeyboardInjector_DoesNotSendDuplicateKeyDown_AndReleaseClearsState()
+    {
+        var sender = new RecordingInputSender();
+        var keyboard = new WindowsKeyboardInjector(sender);
+
+        keyboard.PressKey("A");
+        keyboard.PressKey("A");
+        keyboard.ReleaseAll();
+        keyboard.ReleaseAll();
+
+        Assert.Equal(2, sender.Batches.Count);
+        Assert.Single(sender.Batches[0]);
+        Assert.Single(sender.Batches[1]);
+    }
+
+    [Fact]
+    public void KeyboardInjector_IgnoresReleaseForUnpressedKnownKey()
+    {
+        var sender = new RecordingInputSender();
+        var keyboard = new WindowsKeyboardInjector(sender);
+
+        keyboard.ReleaseKey("A");
+
+        Assert.Empty(sender.Batches);
+    }
+
+    [Fact]
+    public void MouseInjector_DoesNotSendDuplicateButtonDown_AndReleaseClearsState()
+    {
+        var sender = new RecordingInputSender();
+        var mouse = new WindowsMouseInjector(sender);
+
+        mouse.SetButtonState("LEFT", isDown: true);
+        mouse.SetButtonState("LEFT", isDown: true);
+        mouse.ReleaseAll();
+        mouse.ReleaseAll();
+
+        Assert.Equal(2, sender.Batches.Count);
+        Assert.Single(sender.Batches[0]);
+        Assert.Single(sender.Batches[1]);
+    }
+
+    private sealed class RecordingInputSender : IWindowsInputSender
+    {
+        public List<IReadOnlyList<Win32.INPUT>> Batches { get; } = [];
+
+        public void Send(IReadOnlyList<Win32.INPUT> inputs)
+        {
+            Batches.Add(inputs.ToArray());
+        }
     }
 }
