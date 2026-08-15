@@ -5,6 +5,13 @@ import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.isDirectory
 import kotlin.io.path.name
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
@@ -16,11 +23,12 @@ import org.junit.Test
 class ProtocolExamplesTest {
     @Test
     fun protocolExamples_decodeAndRoundTripThroughFrameCodec() {
+        val manifest = readManifest()
         val examples = Files.list(findExamplesDirectory()).use { stream ->
             stream
                 .filter { it.name.endsWith(".json") }
                 .sorted()
-                .toList()
+            .toList()
         }
 
         assertFalse("Expected protocol examples.", examples.isEmpty())
@@ -29,14 +37,17 @@ class ProtocolExamplesTest {
             val json = Files.readAllBytes(path).decodeToString()
             val envelope = ProtocolJson.decodeFromString(Envelope.serializer(), json)
 
-            assertEquals("Unexpected protocol version in ${path.name}.", 1, envelope.v)
+            assertEquals("Unexpected protocol version in ${path.name}.", manifest.version, envelope.v)
             assertTrue("Missing id in ${path.name}.", envelope.id.isNotBlank())
-            assertTrue("Unknown message type in ${path.name}: ${envelope.type}", knownTypes.contains(envelope.type))
+            assertTrue(
+                "Unknown message type in ${path.name}: ${envelope.type}",
+                (manifest.commands + manifest.responses).toSet().contains(envelope.type),
+            )
 
             if (envelope.type == MsgType.ERROR.wireName) {
                 val code = envelope.payload["code"]?.jsonPrimitive?.content
                 assertNotNull("Missing error code in ${path.name}.", code)
-                assertTrue("Unknown error code in ${path.name}: $code", knownErrorCodes.contains(code))
+                assertTrue("Unknown error code in ${path.name}: $code", manifest.errorCodes.contains(code))
             }
 
             val roundTripped = FrameCodec.read(ByteArrayInputStream(FrameCodec.encode(envelope)))
@@ -56,10 +67,128 @@ class ProtocolExamplesTest {
         assertNotNull(parsed?.profile)
     }
 
-    private fun findExamplesDirectory(): Path {
+    @Test
+    fun protocolConstants_matchSharedManifest() {
+        val manifest = readManifest()
+        val expectedTypes = (manifest.commands + manifest.responses).toSet()
+        val actualTypes = MsgType.entries.map { it.wireName }.toSet()
+
+        assertEquals(expectedTypes, actualTypes)
+    }
+
+    @Test
+    fun invalidProtocolExamples_areRejectedByV1Contract() {
+        val manifest = readManifest()
+        val invalidExamples = Files.list(findInvalidDirectory()).use { stream ->
+            stream
+                .filter { it.name.endsWith(".json") }
+                .sorted()
+                .toList()
+        }
+
+        assertFalse("Expected invalid protocol examples.", invalidExamples.isEmpty())
+
+        invalidExamples.forEach { path ->
+            val root = ProtocolJson.parseToJsonElement(Files.readAllBytes(path).decodeToString()).jsonObject
+            assertFalse(path.name, isValidEnvelope(root, manifest))
+        }
+    }
+
+    private fun readManifest(): ProtocolManifest {
+        return ProtocolJson.decodeFromString(
+            ProtocolManifest.serializer(),
+            Files.readAllBytes(findSpecDirectory().resolve("protocol-v1.json")).decodeToString(),
+        )
+    }
+
+    private fun isValidEnvelope(root: JsonObject, manifest: ProtocolManifest): Boolean {
+        val version = intField(root, "v") ?: return false
+        val id = stringField(root, "id", nonEmpty = true) ?: return false
+        val type = stringField(root, "type", nonEmpty = true) ?: return false
+        val payload = root["payload"] as? JsonObject ?: return false
+        if (version != manifest.version || id.isBlank() || type !in (manifest.commands + manifest.responses)) {
+            return false
+        }
+
+        return when (type) {
+            MsgType.HELLO.wireName -> stringField(payload, "deviceId", nonEmpty = true) != null &&
+                stringField(payload, "deviceName", nonEmpty = true) != null
+            MsgType.TEXT_INSERT.wireName -> stringField(payload, "text") != null
+            MsgType.KEY_TAP.wireName,
+            MsgType.KEY_DOWN.wireName,
+            MsgType.KEY_UP.wireName -> stringField(payload, "key", nonEmpty = true) != null
+            MsgType.COMBO.wireName -> stringArrayField(payload, "keys")
+            MsgType.MOUSE_MOVE.wireName -> intField(payload, "dx") != null && intField(payload, "dy") != null
+            MsgType.MOUSE_BUTTON.wireName -> stringField(payload, "button", nonEmpty = true) != null &&
+                oneOf(payload, "action", "down", "up")
+            MsgType.MOUSE_CLICK.wireName -> stringField(payload, "button", nonEmpty = true) != null &&
+                optionalIntField(payload, "repeat")
+            MsgType.MOUSE_SCROLL.wireName -> optionalIntField(payload, "deltaX") && optionalIntField(payload, "deltaY")
+            MsgType.CLIPBOARD_SET.wireName -> stringField(payload, "text") != null
+            MsgType.CLIPBOARD_GET.wireName,
+            MsgType.PING.wireName,
+            MsgType.PONG.wireName -> true
+            MsgType.ACK.wireName -> booleanField(payload, "ok")
+            MsgType.ERROR.wireName -> stringField(payload, "message") != null &&
+                manifest.errorCodes.contains(stringField(payload, "code"))
+            MsgType.AUTH_PENDING.wireName -> intField(payload, "timeoutSec") != null &&
+                stringField(payload, "message") != null
+            MsgType.AUTH_RESULT.wireName -> booleanField(payload, "ok") &&
+                booleanField(payload, "persistToken") &&
+                booleanField(payload, "trusted") &&
+                optionalNullableStringField(payload, "token")
+            MsgType.CLIPBOARD_VALUE.wireName -> stringField(payload, "text") != null
+            MsgType.SHORTCUT_PROFILE.wireName -> nullableStringField(payload, "name") &&
+                nullableObjectField(payload, "profile")
+            else -> false
+        }
+    }
+
+    private fun stringField(objectValue: JsonObject, name: String, nonEmpty: Boolean = false): String? {
+        val primitive = objectValue[name] as? JsonPrimitive ?: return null
+        if (!primitive.isString) return null
+        return primitive.content.takeIf { !nonEmpty || it.isNotBlank() }
+    }
+
+    private fun intField(objectValue: JsonObject, name: String): Int? {
+        val primitive = objectValue[name] as? JsonPrimitive ?: return null
+        return primitive.takeUnless { it.isString }?.intOrNull
+    }
+
+    private fun optionalIntField(objectValue: JsonObject, name: String): Boolean {
+        return !objectValue.containsKey(name) || intField(objectValue, name) != null
+    }
+
+    private fun booleanField(objectValue: JsonObject, name: String): Boolean {
+        val primitive = objectValue[name] as? JsonPrimitive ?: return false
+        return !primitive.isString && primitive.booleanOrNull != null
+    }
+
+    private fun stringArrayField(objectValue: JsonObject, name: String): Boolean {
+        val array = objectValue[name] as? JsonArray ?: return false
+        return array.all { (it as? JsonPrimitive)?.isString == true }
+    }
+
+    private fun nullableStringField(objectValue: JsonObject, name: String): Boolean {
+        return objectValue[name] is JsonNull || stringField(objectValue, name) != null
+    }
+
+    private fun optionalNullableStringField(objectValue: JsonObject, name: String): Boolean {
+        return !objectValue.containsKey(name) || nullableStringField(objectValue, name)
+    }
+
+    private fun nullableObjectField(objectValue: JsonObject, name: String): Boolean {
+        return objectValue[name] is JsonNull || objectValue[name] is JsonObject
+    }
+
+    private fun oneOf(objectValue: JsonObject, name: String, vararg values: String): Boolean {
+        return stringField(objectValue, name)?.let { it in values } == true
+    }
+
+    private fun findSpecDirectory(): Path {
         var current = Path.of(System.getProperty("user.dir")).toAbsolutePath()
         while (true) {
-            val candidate = current.resolve("protocol").resolve("spec").resolve("examples")
+            val candidate = current.resolve("protocol").resolve("spec")
             if (candidate.isDirectory()) {
                 return candidate
             }
@@ -68,22 +197,18 @@ class ProtocolExamplesTest {
             current = parent
         }
 
-        throw AssertionError("Could not find protocol/spec/examples from ${System.getProperty("user.dir")}.")
+        throw AssertionError("Could not find protocol/spec from ${System.getProperty("user.dir")}.")
     }
 
-    private companion object {
-        val knownTypes = MsgType.entries.map { it.wireName }.toSet()
+    private fun findExamplesDirectory(): Path = findSpecDirectory().resolve("examples")
 
-        val knownErrorCodes = setOf(
-            "BUSY",
-            "NOT_AUTHORIZED",
-            "AUTH_TIMEOUT",
-            "AUTH_UI_UNAVAILABLE",
-            "INVALID_PAYLOAD",
-            "SERVER_ERROR",
-            "SESSION_REPLACED",
-            "INPUT_BLOCKED",
-            "CLIPBOARD_FAILED",
-        )
-    }
+    private fun findInvalidDirectory(): Path = findSpecDirectory().resolve("invalid")
+
+    @Serializable
+    private data class ProtocolManifest(
+        val version: Int,
+        val commands: List<String>,
+        val responses: List<String>,
+        val errorCodes: List<String>,
+    )
 }
