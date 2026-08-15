@@ -3,7 +3,7 @@ using BlueType.Agent.Infrastructure.Clipboard;
 using BlueType.Agent.Infrastructure.Logging;
 using BlueType.Protocol;
 
-namespace BlueType.Agent.Core;
+namespace BlueType.Agent.Application.Commands;
 
 internal sealed class ClipboardCommandHandler : ICommandHandler
 {
@@ -18,7 +18,7 @@ internal sealed class ClipboardCommandHandler : ICommandHandler
     {
         switch (envelope.Type)
         {
-            case Commands.ClipboardSet:
+            case BlueType.Protocol.Commands.ClipboardSet:
             {
                 var text = CommandPayloadReader.GetRequiredString(envelope.Payload, "text");
                 await _clipboardService.SetTextAsync(text, cancellationToken);
@@ -26,7 +26,7 @@ internal sealed class ClipboardCommandHandler : ICommandHandler
                 return JsonProtocol.CreateEnvelope(envelope.Id, Responses.Ack, new { ok = true });
             }
 
-            case Commands.ClipboardGet:
+            case BlueType.Protocol.Commands.ClipboardGet:
             {
                 var text = await _clipboardService.GetTextAsync(cancellationToken);
                 AppLogger.Info("Handled command: clipboard_get.");

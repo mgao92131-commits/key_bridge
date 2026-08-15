@@ -5,7 +5,7 @@ using BlueType.Agent.Native;
 using BlueType.Agent.Transport;
 using BlueType.Protocol;
 
-namespace BlueType.Agent.Core;
+namespace BlueType.Agent.Application.Commands;
 
 internal interface IShortcutProfileDispatcher
 {

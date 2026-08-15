@@ -24,7 +24,7 @@ internal sealed class TrayIconGenerator : IDisposable
     public TrayIconGenerator()
     {
         // Extract the main application icon
-        _baseIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath)!;
+        _baseIcon = Icon.ExtractAssociatedIcon(System.Windows.Forms.Application.ExecutablePath)!;
     }
 
     public Icon CreateIcon(ConnectionState connectionState, AlertLevel alertLevel)

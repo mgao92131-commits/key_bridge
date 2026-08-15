@@ -3,7 +3,7 @@ using BlueType.Agent.Infrastructure.Input;
 using BlueType.Agent.Infrastructure.Logging;
 using BlueType.Protocol;
 
-namespace BlueType.Agent.Core;
+namespace BlueType.Agent.Application.Commands;
 
 internal sealed class KeyboardCommandHandler : ICommandHandler
 {
@@ -18,7 +18,7 @@ internal sealed class KeyboardCommandHandler : ICommandHandler
     {
         switch (envelope.Type)
         {
-            case Commands.TextInsert:
+            case BlueType.Protocol.Commands.TextInsert:
             {
                 var text = CommandPayloadReader.GetRequiredString(envelope.Payload, "text");
                 if (Encoding.UTF8.GetByteCount(text) > 8 * 1024)
@@ -34,7 +34,7 @@ internal sealed class KeyboardCommandHandler : ICommandHandler
                 return CreateAck(envelope.Id);
             }
 
-            case Commands.KeyTap:
+            case BlueType.Protocol.Commands.KeyTap:
             {
                 var key = CommandPayloadReader.GetRequiredString(envelope.Payload, "key");
                 await _inputInjector.TapKeyAsync(key, cancellationToken);
@@ -42,7 +42,7 @@ internal sealed class KeyboardCommandHandler : ICommandHandler
                 return CreateAck(envelope.Id);
             }
 
-            case Commands.KeyDown:
+            case BlueType.Protocol.Commands.KeyDown:
             {
                 var key = CommandPayloadReader.GetRequiredString(envelope.Payload, "key");
                 await _inputInjector.PressKeyAsync(key, cancellationToken);
@@ -50,7 +50,7 @@ internal sealed class KeyboardCommandHandler : ICommandHandler
                 return CreateAck(envelope.Id);
             }
 
-            case Commands.KeyUp:
+            case BlueType.Protocol.Commands.KeyUp:
             {
                 var key = CommandPayloadReader.GetRequiredString(envelope.Payload, "key");
                 await _inputInjector.ReleaseKeyAsync(key, cancellationToken);
@@ -58,7 +58,7 @@ internal sealed class KeyboardCommandHandler : ICommandHandler
                 return CreateAck(envelope.Id);
             }
 
-            case Commands.Combo:
+            case BlueType.Protocol.Commands.Combo:
             {
                 var keys = CommandPayloadReader.GetRequiredStringArray(envelope.Payload, "keys");
                 await _inputInjector.SendComboAsync(keys, cancellationToken);

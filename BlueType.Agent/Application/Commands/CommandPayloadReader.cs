@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace BlueType.Agent.Core;
+namespace BlueType.Agent.Application.Commands;
 
 internal static class CommandPayloadReader
 {

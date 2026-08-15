@@ -27,14 +27,14 @@ internal static class Program
             return;
         }
 
-        Application.ThreadException += (_, args) => AppLogger.Error("Unhandled UI exception.", args.Exception);
+        System.Windows.Forms.Application.ThreadException += (_, args) => AppLogger.Error("Unhandled UI exception.", args.Exception);
         AppDomain.CurrentDomain.UnhandledException += (_, args) =>
             AppLogger.Error("Unhandled app domain exception.", args.ExceptionObject as Exception);
 
         AppLogger.Info("BlueType Agent starting.");
         try
         {
-            Application.Run(new TrayAppContext());
+        System.Windows.Forms.Application.Run(new TrayAppContext());
         }
         finally
         {

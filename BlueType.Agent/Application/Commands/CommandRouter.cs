@@ -3,7 +3,7 @@ using BlueType.Agent.Infrastructure.Clipboard;
 using BlueType.Agent.Infrastructure.Input;
 using BlueType.Agent.Infrastructure.Logging;
 
-namespace BlueType.Agent.Core;
+namespace BlueType.Agent.Application.Commands;
 
 internal sealed class CommandRouter
 {
@@ -23,9 +23,9 @@ internal sealed class CommandRouter
     {
         switch (envelope.Type)
         {
-            case Commands.Ping:
+            case BlueType.Protocol.Commands.Ping:
                 AppLogger.Info("Handled command: ping.");
-                return JsonProtocol.CreateEnvelope(envelope.Id, Commands.Pong, new { ok = true });
+                return JsonProtocol.CreateEnvelope(envelope.Id, BlueType.Protocol.Commands.Pong, new { ok = true });
         }
 
         foreach (var handler in _handlers)

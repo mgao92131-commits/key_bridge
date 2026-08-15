@@ -1,4 +1,5 @@
 using BlueType.Protocol;
+using BlueType.Agent.Application.Commands;
 
 namespace BlueType.Agent.Core;
 

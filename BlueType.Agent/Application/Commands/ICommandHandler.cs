@@ -1,6 +1,6 @@
 using BlueType.Protocol;
 
-namespace BlueType.Agent.Core;
+namespace BlueType.Agent.Application.Commands;
 
 internal interface ICommandHandler
 {

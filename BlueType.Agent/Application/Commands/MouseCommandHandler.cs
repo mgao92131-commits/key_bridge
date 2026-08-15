@@ -2,7 +2,7 @@ using BlueType.Protocol;
 using BlueType.Agent.Infrastructure.Input;
 using BlueType.Agent.Infrastructure.Logging;
 
-namespace BlueType.Agent.Core;
+namespace BlueType.Agent.Application.Commands;
 
 internal sealed class MouseCommandHandler : ICommandHandler
 {
@@ -17,7 +17,7 @@ internal sealed class MouseCommandHandler : ICommandHandler
     {
         switch (envelope.Type)
         {
-            case Commands.MouseMove:
+            case BlueType.Protocol.Commands.MouseMove:
             {
                 var dx = CommandPayloadReader.GetRequiredInt(envelope.Payload, "dx");
                 var dy = CommandPayloadReader.GetRequiredInt(envelope.Payload, "dy");
@@ -26,7 +26,7 @@ internal sealed class MouseCommandHandler : ICommandHandler
                 return CreateAck(envelope.Id);
             }
 
-            case Commands.MouseButton:
+            case BlueType.Protocol.Commands.MouseButton:
             {
                 var button = CommandPayloadReader.GetRequiredString(envelope.Payload, "button");
                 var action = CommandPayloadReader.GetRequiredString(envelope.Payload, "action");
@@ -46,7 +46,7 @@ internal sealed class MouseCommandHandler : ICommandHandler
                 return CreateAck(envelope.Id);
             }
 
-            case Commands.MouseClick:
+            case BlueType.Protocol.Commands.MouseClick:
             {
                 var button = CommandPayloadReader.GetRequiredString(envelope.Payload, "button");
                 var repeat = CommandPayloadReader.GetOptionalInt(envelope.Payload, "repeat", 1);
@@ -55,7 +55,7 @@ internal sealed class MouseCommandHandler : ICommandHandler
                 return CreateAck(envelope.Id);
             }
 
-            case Commands.MouseScroll:
+            case BlueType.Protocol.Commands.MouseScroll:
             {
                 var deltaX = CommandPayloadReader.GetOptionalInt(envelope.Payload, "deltaX", 0);
                 var deltaY = CommandPayloadReader.GetOptionalInt(envelope.Payload, "deltaY", 0);
