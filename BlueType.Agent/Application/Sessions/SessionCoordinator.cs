@@ -26,7 +26,7 @@ internal sealed class SessionCoordinator
             authService,
             inputInjector,
             new ActiveSessionManager(),
-            NullShortcutProfileDispatcher.Instance,
+            NullShortcutProfileCoordinator.Instance,
             (_, _) => Task.FromResult(AuthPromptDecision.Deny),
             inputInjector,
             new SessionHeartbeat())
@@ -38,7 +38,7 @@ internal sealed class SessionCoordinator
         AuthService authService,
         WindowsInputService inputInjector,
         ActiveSessionManager activeSessionManager,
-        IShortcutProfileDispatcher shortcutProfiles,
+        IShortcutProfileCoordinator shortcutProfiles,
         Func<AuthPromptRequest, CancellationToken, Task<AuthPromptDecision>> promptAsync)
         : this(
             commandDispatcher,
@@ -57,7 +57,7 @@ internal sealed class SessionCoordinator
         AuthService authService,
         WindowsInputService inputInjector,
         ActiveSessionManager activeSessionManager,
-        IShortcutProfileDispatcher shortcutProfiles,
+        IShortcutProfileCoordinator shortcutProfiles,
         Func<AuthPromptRequest, CancellationToken, Task<AuthPromptDecision>> promptAsync,
         IInputRelease inputRelease,
         SessionHeartbeat heartbeat)

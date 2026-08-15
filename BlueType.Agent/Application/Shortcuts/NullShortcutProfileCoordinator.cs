@@ -2,11 +2,11 @@ using BlueType.Protocol;
 
 namespace BlueType.Agent.Application.Shortcuts;
 
-internal sealed class NullShortcutProfileDispatcher : IShortcutProfileDispatcher
+internal sealed class NullShortcutProfileCoordinator : IShortcutProfileCoordinator
 {
-    public static readonly NullShortcutProfileDispatcher Instance = new();
+    public static readonly NullShortcutProfileCoordinator Instance = new();
 
-    private NullShortcutProfileDispatcher()
+    private NullShortcutProfileCoordinator()
     {
     }
 

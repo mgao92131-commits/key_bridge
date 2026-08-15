@@ -1,17 +1,16 @@
 using BlueType.Agent.Application.Ports;
 using BlueType.Agent.Infrastructure.Logging;
-using BlueType.Agent.Infrastructure.Shortcuts;
 using BlueType.Protocol;
 
 namespace BlueType.Agent.Application.Shortcuts;
 
-internal interface IShortcutProfileDispatcher
+internal interface IShortcutProfileCoordinator
 {
     void RegisterSession(Guid sessionId, Func<Envelope, CancellationToken, Task> writeAsync);
     void UnregisterSession(Guid sessionId);
 }
 
-internal sealed class ShortcutProfileDispatcher : IShortcutProfileDispatcher, IDisposable
+internal sealed class ShortcutProfileCoordinator : IShortcutProfileCoordinator, IDisposable
 {
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(300);
     private static readonly TimeSpan StableDuration = TimeSpan.FromMilliseconds(500);
@@ -29,7 +28,7 @@ internal sealed class ShortcutProfileDispatcher : IShortcutProfileDispatcher, ID
     private long _observedSince;
     private string? _lastSentProfileKey;
 
-    public ShortcutProfileDispatcher(
+    public ShortcutProfileCoordinator(
         ShortcutProfileMatcher matcher,
         IForegroundAppProvider foregroundAppProvider,
         IShortcutProfileRepository profileRepository,

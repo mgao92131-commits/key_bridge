@@ -21,7 +21,7 @@ internal static class AgentCompositionRoot
     {
         var inputInjector = new WindowsInputService();
         var clipboardService = new ClipboardService();
-        var shortcutProfiles = new ShortcutProfileDispatcher(
+        var shortcutProfiles = new ShortcutProfileCoordinator(
             new ShortcutProfileMatcher(),
             new WindowsForegroundAppProvider(),
             new JsonShortcutProfileRepository(),

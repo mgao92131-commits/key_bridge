@@ -16,11 +16,11 @@ internal enum HandshakeResult
 internal sealed class SessionHandshake
 {
     private readonly SessionHelloHandler _helloHandler;
-    private readonly IShortcutProfileDispatcher _shortcutProfiles;
+    private readonly IShortcutProfileCoordinator _shortcutProfiles;
 
     public SessionHandshake(
         SessionHelloHandler helloHandler,
-        IShortcutProfileDispatcher shortcutProfiles)
+        IShortcutProfileCoordinator shortcutProfiles)
     {
         _helloHandler = helloHandler;
         _shortcutProfiles = shortcutProfiles;

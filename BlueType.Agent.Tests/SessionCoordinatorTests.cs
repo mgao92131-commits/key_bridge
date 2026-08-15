@@ -270,7 +270,7 @@ public sealed class SessionCoordinatorTests
         {
             ThrowOnKeyboardRelease = true,
         };
-        var shortcutProfiles = new RecordingShortcutProfileDispatcher();
+        var shortcutProfiles = new RecordingShortcutProfileCoordinator();
         using var harness = ProcessorHarness.CreateEmpty(activeSessions, shortcutProfiles, inputRelease);
         await using var session = harness.CreateSession();
 
@@ -352,14 +352,14 @@ public sealed class SessionCoordinatorTests
             Stream stream,
             AuthService? authService = null,
             ActiveSessionManager? activeSessions = null,
-            RecordingShortcutProfileDispatcher? shortcutProfiles = null,
+            RecordingShortcutProfileCoordinator? shortcutProfiles = null,
             RecordingInputRelease? inputRelease = null,
             SessionHeartbeat? heartbeat = null)
         {
             Stream = stream;
             AuthService = authService ?? new AuthService(new DeviceRegistry(), (_, _) => Task.FromResult(AuthPromptDecision.AllowOnce));
             ActiveSessions = activeSessions ?? new ActiveSessionManager();
-            ShortcutProfiles = shortcutProfiles ?? new RecordingShortcutProfileDispatcher();
+            ShortcutProfiles = shortcutProfiles ?? new RecordingShortcutProfileCoordinator();
             InputRelease = inputRelease ?? new RecordingInputRelease();
             Dispatcher = CommandDispatcherTestFactory.Create(_inputInjector, _clipboardService);
             Processor = new SessionCoordinator(
@@ -381,7 +381,7 @@ public sealed class SessionCoordinatorTests
 
         public ActiveSessionManager ActiveSessions { get; }
 
-        public RecordingShortcutProfileDispatcher ShortcutProfiles { get; }
+        public RecordingShortcutProfileCoordinator ShortcutProfiles { get; }
 
         public RecordingInputRelease InputRelease { get; }
 
@@ -417,7 +417,7 @@ public sealed class SessionCoordinatorTests
 
         public static ProcessorHarness CreateEmpty(
             ActiveSessionManager? activeSessions = null,
-            RecordingShortcutProfileDispatcher? shortcutProfiles = null,
+            RecordingShortcutProfileCoordinator? shortcutProfiles = null,
             RecordingInputRelease? inputRelease = null,
             SessionHeartbeat? heartbeat = null)
         {
@@ -432,7 +432,7 @@ public sealed class SessionCoordinatorTests
         public static ProcessorHarness Create(
             Stream stream,
             ActiveSessionManager? activeSessions = null,
-            RecordingShortcutProfileDispatcher? shortcutProfiles = null,
+            RecordingShortcutProfileCoordinator? shortcutProfiles = null,
             RecordingInputRelease? inputRelease = null,
             SessionHeartbeat? heartbeat = null)
         {
@@ -493,7 +493,7 @@ public sealed class SessionCoordinatorTests
         }
     }
 
-    private sealed class RecordingShortcutProfileDispatcher : IShortcutProfileDispatcher
+    private sealed class RecordingShortcutProfileCoordinator : IShortcutProfileCoordinator
     {
         public int RegisterCount => Volatile.Read(ref _registerCount);
 

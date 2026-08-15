@@ -8,12 +8,12 @@ namespace BlueType.Agent.Application.Sessions;
 internal sealed class SessionCleanup
 {
     private readonly ActiveSessionManager _activeSessionManager;
-    private readonly IShortcutProfileDispatcher _shortcutProfiles;
+    private readonly IShortcutProfileCoordinator _shortcutProfiles;
     private readonly IInputRelease _inputRelease;
 
     public SessionCleanup(
         ActiveSessionManager activeSessionManager,
-        IShortcutProfileDispatcher shortcutProfiles,
+        IShortcutProfileCoordinator shortcutProfiles,
         IInputRelease inputRelease)
     {
         _activeSessionManager = activeSessionManager;
