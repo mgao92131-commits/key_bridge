@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/mgao92131-commits/key_bridge/blob/main/protocol/spec/schema/commands/clipboard-set.schema.json",
+  "title": "BlueType clipboard_set payload",
+  "type": "object",
+  "required": ["text"],
+  "properties": {
+    "text": { "type": "string" }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/mgao92131-commits/key_bridge/blob/main/protocol/spec/schema/commands/hello.schema.json",
+  "title": "BlueType hello payload",
+  "type": "object",
+  "required": ["deviceId", "deviceName"],
+  "properties": {
+    "deviceId": { "type": "string", "minLength": 1 },
+    "deviceName": { "type": "string", "minLength": 1 },
+    "appVersion": { "type": "string" }
+  }
+}

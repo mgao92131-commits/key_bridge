@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/mgao92131-commits/key_bridge/blob/main/protocol/spec/schema/commands/mouse-move.schema.json",
+  "title": "BlueType mouse_move payload",
+  "type": "object",
+  "required": ["dx", "dy"],
+  "properties": {
+    "dx": { "type": "integer" },
+    "dy": { "type": "integer" }
+  }
+}

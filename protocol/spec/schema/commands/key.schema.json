@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/mgao92131-commits/key_bridge/blob/main/protocol/spec/schema/commands/key.schema.json",
+  "title": "BlueType key payload",
+  "description": "Shared by key_tap, key_down, and key_up.",
+  "type": "object",
+  "required": ["key"],
+  "properties": {
+    "key": { "type": "string", "minLength": 1 }
+  }
+}
