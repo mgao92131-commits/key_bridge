@@ -141,7 +141,7 @@ internal sealed class SessionCoordinator
             await _commandLoop.RunAsync(
                 context,
                 lifecycle,
-                sessionLifetime,
+                sessionToken,
                 () => Volatile.Write(ref lastInboundAt, Environment.TickCount64));
         }
         catch (OperationCanceledException) when (sessionLifetime.IsCancellationRequested)

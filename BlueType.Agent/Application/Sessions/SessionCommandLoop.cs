@@ -24,13 +24,12 @@ internal sealed class SessionCommandLoop
     public async Task RunAsync(
         SessionExecutionContext context,
         SessionLifecycle lifecycle,
-        CancellationTokenSource sessionLifetime,
+        CancellationToken cancellationToken,
         Action recordInboundActivity)
     {
-        var sessionToken = sessionLifetime.Token;
-        while (!sessionToken.IsCancellationRequested)
+        while (!cancellationToken.IsCancellationRequested)
         {
-            var envelope = await context.Session.ReadAsync(sessionToken);
+            var envelope = await context.Session.ReadAsync(cancellationToken);
             if (envelope is null)
             {
                 break;
@@ -38,7 +37,7 @@ internal sealed class SessionCommandLoop
 
             recordInboundActivity();
 
-            if (await _heartbeat.TryHandleInboundAsync(context.Session, envelope, sessionToken))
+            if (await _heartbeat.TryHandleInboundAsync(context.Session, envelope, cancellationToken))
             {
                 continue;
             }
@@ -53,7 +52,7 @@ internal sealed class SessionCommandLoop
                 context.OnMessage,
                 context.SessionId,
                 context.DisconnectCurrentSession,
-                sessionToken);
+                cancellationToken);
             if (handshakeResult == HandshakeResult.Continue)
             {
                 continue;
@@ -69,7 +68,7 @@ internal sealed class SessionCommandLoop
             if (lifecycleError is not null)
             {
                 response = lifecycleError;
-                await context.Session.WriteAsync(response, sessionToken);
+                await context.Session.WriteAsync(response, cancellationToken);
                 if (string.Equals(response.Type, Responses.Error, StringComparison.Ordinal) &&
                     response.Payload.TryGetProperty("code", out var code) &&
                     string.Equals(code.GetString(), "SESSION_REPLACED", StringComparison.Ordinal))
@@ -81,7 +80,7 @@ internal sealed class SessionCommandLoop
             {
                 try
                 {
-                    response = await _commandRouter.RouteAsync(envelope, sessionToken);
+                    response = await _commandRouter.RouteAsync(envelope, cancellationToken);
                 }
                 catch (Exception ex)
                 {
@@ -92,7 +91,7 @@ internal sealed class SessionCommandLoop
 
             if (lifecycleError is null)
             {
-                await context.Session.WriteAsync(response, sessionToken);
+                await context.Session.WriteAsync(response, cancellationToken);
             }
         }
     }
