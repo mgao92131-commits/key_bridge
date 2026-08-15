@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/mgao92131-commits/key_bridge/blob/main/protocol/spec/schema/responses/error.schema.json",
+  "title": "BlueType error payload",
+  "type": "object",
+  "required": ["code", "message"],
+  "properties": {
+    "code": {
+      "enum": [
+        "BUSY",
+        "NOT_AUTHORIZED",
+        "AUTH_TIMEOUT",
+        "AUTH_UI_UNAVAILABLE",
+        "INVALID_PAYLOAD",
+        "SERVER_ERROR",
+        "SESSION_REPLACED",
+        "INPUT_BLOCKED",
+        "CLIPBOARD_FAILED"
+      ]
+    },
+    "message": { "type": "string" }
+  }
+}

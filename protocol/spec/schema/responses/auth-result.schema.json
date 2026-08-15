@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/mgao92131-commits/key_bridge/blob/main/protocol/spec/schema/responses/auth-result.schema.json",
+  "title": "BlueType auth_result payload",
+  "type": "object",
+  "required": ["ok", "persistToken", "trusted"],
+  "properties": {
+    "ok": { "const": true },
+    "token": { "type": ["string", "null"] },
+    "persistToken": { "type": "boolean" },
+    "trusted": { "type": "boolean" }
+  }
+}

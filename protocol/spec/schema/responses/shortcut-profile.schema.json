@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/mgao92131-commits/key_bridge/blob/main/protocol/spec/schema/responses/shortcut-profile.schema.json",
+  "title": "BlueType shortcut_profile payload",
+  "type": "object",
+  "required": ["name", "profile"],
+  "properties": {
+    "name": { "type": ["string", "null"] },
+    "profile": { "type": ["object", "null"] }
+  }
+}

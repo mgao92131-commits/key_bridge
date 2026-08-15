@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/mgao92131-commits/key_bridge/blob/main/protocol/spec/schema/responses/ack.schema.json",
+  "title": "BlueType ack payload",
+  "type": "object",
+  "required": ["ok"],
+  "properties": {
+    "ok": { "const": true }
+  }
+}

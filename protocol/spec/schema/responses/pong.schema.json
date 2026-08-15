@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/mgao92131-commits/key_bridge/blob/main/protocol/spec/schema/responses/pong.schema.json",
+  "title": "BlueType pong payload",
+  "type": "object",
+  "properties": {}
+}
