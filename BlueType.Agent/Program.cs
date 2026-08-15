@@ -10,6 +10,7 @@ namespace BlueType.Agent;
 internal static class Program
 {
     private const string InstanceMutexName = @"Local\BlueType.Agent";
+    private static readonly TimeSpan RuntimeShutdownTimeout = TimeSpan.FromSeconds(10);
 
     [STAThread]
     private static void Main()
@@ -33,16 +34,38 @@ internal static class Program
             AppLogger.Error("Unhandled app domain exception.", args.ExceptionObject as Exception);
 
         AppLogger.Info("BlueType Agent starting.");
+        AgentRuntime? runtime = null;
         try
         {
             var synchronizationContext = SynchronizationContext.Current ?? new WindowsFormsSynchronizationContext();
             var authorizationPrompt = new AuthorizationPromptPresenter(synchronizationContext);
-            var runtime = AgentCompositionRoot.Create(authorizationPrompt.ShowAsync);
+            runtime = AgentCompositionRoot.Create(authorizationPrompt.ShowAsync);
             System.Windows.Forms.Application.Run(
                 new TrayAppContext(runtime, authorizationPrompt, synchronizationContext));
         }
         finally
         {
+            if (runtime is not null)
+            {
+                try
+                {
+                    var stopTask = runtime.StopAsync();
+                    if (!stopTask.Wait(RuntimeShutdownTimeout))
+                    {
+                        AppLogger.Warn(
+                            $"Agent runtime shutdown did not complete within {RuntimeShutdownTimeout.TotalSeconds:0} seconds.");
+                    }
+                    else
+                    {
+                        stopTask.GetAwaiter().GetResult();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AppLogger.Error("Agent runtime shutdown failed during program cleanup.", ex);
+                }
+            }
+
             AppLogger.Info("BlueType Agent stopped.");
         }
     }
