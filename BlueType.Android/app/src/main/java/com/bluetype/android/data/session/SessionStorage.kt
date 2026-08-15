@@ -1,10 +1,9 @@
 package com.bluetype.android.data.session
 
 import androidx.datastore.preferences.core.edit
-import com.bluetype.android.data.PersistedSession
-import com.bluetype.android.data.PersistedSessionRepository
+import com.bluetype.android.data.device.withStableId
 import com.bluetype.android.data.preferences.PreferencesBackingStore
-import com.bluetype.android.data.withStableId
+import com.bluetype.android.data.session.PersistedSession
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.first
 

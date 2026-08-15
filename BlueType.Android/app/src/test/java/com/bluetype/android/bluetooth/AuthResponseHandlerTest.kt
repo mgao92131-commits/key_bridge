@@ -2,8 +2,8 @@ package com.bluetype.android.bluetooth
 
 import com.bluetype.android.feature.connection.*
 import com.bluetype.android.protocol.*
-import com.bluetype.android.domain.ConnectionState
-import com.bluetype.android.domain.ConnectionTarget
+import com.bluetype.android.domain.model.ConnectionState
+import com.bluetype.android.domain.model.ConnectionTarget
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.junit.Assert.assertEquals

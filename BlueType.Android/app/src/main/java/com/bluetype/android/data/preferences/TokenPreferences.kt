@@ -1,10 +1,10 @@
 package com.bluetype.android.data.preferences
 
 import androidx.datastore.preferences.core.edit
-import com.bluetype.android.data.TokenCandidate
-import com.bluetype.android.data.TokenRepository
-import com.bluetype.android.data.TokenSource
-import com.bluetype.android.domain.ConnectionTarget
+import com.bluetype.android.data.security.TokenCandidate
+import com.bluetype.android.data.security.TokenSource
+import com.bluetype.android.data.session.TokenRepository
+import com.bluetype.android.domain.model.ConnectionTarget
 import kotlinx.coroutines.flow.first
 
 internal class TokenPreferences(

@@ -1,4 +1,4 @@
-package com.bluetype.android.domain
+package com.bluetype.android.domain.model
 
 sealed interface ConnectionTarget {
     val label: String

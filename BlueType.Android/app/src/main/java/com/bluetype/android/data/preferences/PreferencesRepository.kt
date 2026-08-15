@@ -1,10 +1,16 @@
-package com.bluetype.android.data
+package com.bluetype.android.data.preferences
 
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import com.bluetype.android.data.preferences.PreferenceStores
-import com.bluetype.android.data.preferences.dataStore
+import com.bluetype.android.data.device.StoredDevice
+import com.bluetype.android.data.security.EncryptedTokenStore
+import com.bluetype.android.data.security.SecureTokenStore
+import com.bluetype.android.data.security.TokenCandidate
+import com.bluetype.android.data.session.PersistedSession
+import com.bluetype.android.data.session.DeviceIdentityRepository
+import com.bluetype.android.data.session.PersistedSessionRepository
+import com.bluetype.android.data.session.TokenRepository
 
 /**
  * Temporary compatibility facade for callers that still need the legacy aggregate API.
@@ -30,7 +36,7 @@ class PreferencesRepository internal constructor(
 
     override suspend fun resolveTokenCandidate(
         computerId: String,
-        target: com.bluetype.android.domain.ConnectionTarget,
+        target: com.bluetype.android.domain.model.ConnectionTarget,
     ): TokenCandidate? = stores.tokens.resolveTokenCandidate(computerId, target)
 
     override suspend fun saveToken(computerId: String, token: String) =

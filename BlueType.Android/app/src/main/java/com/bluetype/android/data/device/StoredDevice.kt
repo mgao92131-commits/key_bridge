@@ -1,4 +1,4 @@
-package com.bluetype.android.data
+package com.bluetype.android.data.device
 
 import java.util.UUID
 import kotlinx.serialization.Serializable

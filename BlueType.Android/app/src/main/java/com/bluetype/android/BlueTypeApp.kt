@@ -6,8 +6,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import com.bluetype.android.domain.ConnectionState
-import com.bluetype.android.domain.UiRoute
+import com.bluetype.android.domain.model.ConnectionState
+import com.bluetype.android.domain.model.UiRoute
 import com.bluetype.android.feature.connection.DeviceListScreen
 import com.bluetype.android.feature.connection.MainViewModel
 import com.bluetype.android.feature.remote.RemoteScreen

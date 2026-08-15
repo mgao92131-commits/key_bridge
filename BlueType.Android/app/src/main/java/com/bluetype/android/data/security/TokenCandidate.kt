@@ -1,4 +1,4 @@
-package com.bluetype.android.data
+package com.bluetype.android.data.security
 
 data class TokenCandidate(
     val token: String,

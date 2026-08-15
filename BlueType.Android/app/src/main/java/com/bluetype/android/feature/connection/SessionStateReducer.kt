@@ -1,8 +1,8 @@
 package com.bluetype.android.feature.connection
 
-import com.bluetype.android.domain.ConnectionPhase
-import com.bluetype.android.domain.ConnectionState
-import com.bluetype.android.domain.ConnectionTarget
+import com.bluetype.android.domain.model.ConnectionPhase
+import com.bluetype.android.domain.model.ConnectionState
+import com.bluetype.android.domain.model.ConnectionTarget
 
 internal object SessionStateReducer {
     fun reduce(event: Event): Transition {

@@ -1,11 +1,11 @@
 package com.bluetype.android.bluetooth
 
 import com.bluetype.android.feature.connection.*
-import com.bluetype.android.data.DeviceType
-import com.bluetype.android.data.StoredDevice
-import com.bluetype.android.data.TokenCandidate
-import com.bluetype.android.data.TokenSource
-import com.bluetype.android.domain.ConnectionTarget
+import com.bluetype.android.data.device.DeviceType
+import com.bluetype.android.data.device.StoredDevice
+import com.bluetype.android.data.security.TokenCandidate
+import com.bluetype.android.data.security.TokenSource
+import com.bluetype.android.domain.model.ConnectionTarget
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue

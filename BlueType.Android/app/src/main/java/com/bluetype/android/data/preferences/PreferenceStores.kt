@@ -3,8 +3,8 @@ package com.bluetype.android.data.preferences
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import com.bluetype.android.data.EncryptedTokenStore
-import com.bluetype.android.data.SecureTokenStore
+import com.bluetype.android.data.security.EncryptedTokenStore
+import com.bluetype.android.data.security.SecureTokenStore
 import com.bluetype.android.data.session.SessionStorage
 
 /** The application-level composition of the focused preference stores. */

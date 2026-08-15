@@ -1,6 +1,6 @@
-package com.bluetype.android.data
+package com.bluetype.android.data.security
 
-import com.bluetype.android.domain.ConnectionTarget
+import com.bluetype.android.domain.model.ConnectionTarget
 import java.util.Locale
 
 internal fun ConnectionTarget.tokenStorageKey(): String {

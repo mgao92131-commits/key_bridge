@@ -2,11 +2,11 @@ package com.bluetype.android.bluetooth
 
 import com.bluetype.android.feature.connection.*
 import com.bluetype.android.feature.remote.*
-import com.bluetype.android.domain.CommandFeedback
-import com.bluetype.android.domain.CommandFeedbackState
-import com.bluetype.android.domain.ConnectionState
-import com.bluetype.android.domain.ConnectionTarget
-import com.bluetype.android.domain.RemoteAction
+import com.bluetype.android.domain.model.CommandFeedback
+import com.bluetype.android.domain.model.CommandFeedbackState
+import com.bluetype.android.domain.model.ConnectionState
+import com.bluetype.android.domain.model.ConnectionTarget
+import com.bluetype.android.domain.model.RemoteAction
 import com.bluetype.android.transport.SessionClient
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async

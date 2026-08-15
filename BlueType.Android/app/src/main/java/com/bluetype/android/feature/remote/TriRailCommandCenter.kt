@@ -34,9 +34,9 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.bluetype.android.domain.RailConfig
-import com.bluetype.android.domain.ShortcutAction
-import com.bluetype.android.domain.ShortcutProfile
+import com.bluetype.android.domain.model.RailConfig
+import com.bluetype.android.domain.model.ShortcutAction
+import com.bluetype.android.domain.model.ShortcutProfile
 import com.bluetype.android.ui.theme.BlueTypeTheme
 import com.bluetype.android.ui.theme.BlueTypeRoundedTokens
 import kotlinx.coroutines.delay

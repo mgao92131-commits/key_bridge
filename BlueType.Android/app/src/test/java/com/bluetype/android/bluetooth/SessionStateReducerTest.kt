@@ -1,9 +1,9 @@
 package com.bluetype.android.bluetooth
 
 import com.bluetype.android.feature.connection.*
-import com.bluetype.android.domain.ConnectionPhase
-import com.bluetype.android.domain.ConnectionState
-import com.bluetype.android.domain.ConnectionTarget
+import com.bluetype.android.domain.model.ConnectionPhase
+import com.bluetype.android.domain.model.ConnectionState
+import com.bluetype.android.domain.model.ConnectionTarget
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

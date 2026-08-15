@@ -1,4 +1,4 @@
-package com.bluetype.android.domain
+package com.bluetype.android.domain.model
 
 data class RemoteShortcutProfile(
     val name: String?,

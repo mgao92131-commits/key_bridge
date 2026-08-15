@@ -45,10 +45,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.bluetype.android.domain.ConnectionState
-import com.bluetype.android.domain.ConnectionTarget
-import com.bluetype.android.data.StoredDevice
-import com.bluetype.android.data.DeviceType
+import com.bluetype.android.domain.model.ConnectionState
+import com.bluetype.android.domain.model.ConnectionTarget
+import com.bluetype.android.data.device.StoredDevice
+import com.bluetype.android.data.device.DeviceType
 import com.bluetype.android.ui.theme.BlueTypeTheme
 import com.bluetype.android.ui.theme.BlueTypeRoundedTokens
 

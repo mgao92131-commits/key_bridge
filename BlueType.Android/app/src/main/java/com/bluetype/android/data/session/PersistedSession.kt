@@ -1,7 +1,10 @@
-package com.bluetype.android.data
+package com.bluetype.android.data.session
 
-import com.bluetype.android.domain.ConnectionTarget
-import com.bluetype.android.domain.UiRoute
+import com.bluetype.android.data.device.DeviceType
+import com.bluetype.android.data.device.StoredDevice
+import com.bluetype.android.data.device.withStableId
+import com.bluetype.android.domain.model.ConnectionTarget
+import com.bluetype.android.domain.model.UiRoute
 import kotlinx.serialization.Serializable
 
 @Serializable

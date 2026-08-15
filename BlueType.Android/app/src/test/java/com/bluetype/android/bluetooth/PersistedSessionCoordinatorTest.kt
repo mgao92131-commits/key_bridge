@@ -1,11 +1,11 @@
 package com.bluetype.android.bluetooth
 
 import com.bluetype.android.feature.connection.*
-import com.bluetype.android.data.PersistedSession
-import com.bluetype.android.data.StoredDevice
-import com.bluetype.android.data.DeviceType
-import com.bluetype.android.domain.ConnectionTarget
-import com.bluetype.android.domain.UiRoute
+import com.bluetype.android.data.device.DeviceType
+import com.bluetype.android.data.device.StoredDevice
+import com.bluetype.android.data.session.PersistedSession
+import com.bluetype.android.domain.model.ConnectionTarget
+import com.bluetype.android.domain.model.UiRoute
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

@@ -1,6 +1,6 @@
 package com.bluetype.android.feature.connection
 
-import com.bluetype.android.domain.ConnectionTarget
+import com.bluetype.android.domain.model.ConnectionTarget
 
 data class ComputerConnectionProfile(
     val computerId: String,

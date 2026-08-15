@@ -1,6 +1,6 @@
 package com.bluetype.android.feature.connection
 
-import com.bluetype.android.data.TokenCandidate
+import com.bluetype.android.data.security.TokenCandidate
 
 /**
  * Classifies remote HELLO authentication outcomes for local persistence decisions.

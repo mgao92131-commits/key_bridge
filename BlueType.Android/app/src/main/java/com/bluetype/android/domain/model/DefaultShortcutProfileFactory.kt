@@ -1,4 +1,4 @@
-package com.bluetype.android.domain
+package com.bluetype.android.domain.model
 
 object DefaultShortcutProfileFactory {
     fun create(): ShortcutProfile {

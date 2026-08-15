@@ -1,10 +1,10 @@
 package com.bluetype.android.feature.shortcuts
 
-import com.bluetype.android.domain.CustomShortcutBtn
-import com.bluetype.android.domain.RailConfig
-import com.bluetype.android.domain.RemoteShortcutProfile
-import com.bluetype.android.domain.ShortcutAction
-import com.bluetype.android.domain.ShortcutProfile
+import com.bluetype.android.domain.model.CustomShortcutBtn
+import com.bluetype.android.domain.model.RailConfig
+import com.bluetype.android.domain.model.RemoteShortcutProfile
+import com.bluetype.android.domain.model.ShortcutAction
+import com.bluetype.android.domain.model.ShortcutProfile
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull

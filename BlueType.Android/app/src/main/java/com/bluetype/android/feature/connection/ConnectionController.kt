@@ -1,15 +1,15 @@
 package com.bluetype.android.feature.connection
 
 import android.content.Context
-import com.bluetype.android.data.StoredDevice
+import com.bluetype.android.data.device.StoredDevice
 import com.bluetype.android.data.preferences.PreferenceStores
-import com.bluetype.android.domain.CommandFeedback
-import com.bluetype.android.domain.CommandFeedbackState
-import com.bluetype.android.domain.ConnectionState
-import com.bluetype.android.domain.ConnectionTarget
-import com.bluetype.android.domain.RemoteAction
-import com.bluetype.android.domain.RemoteShortcutProfile
-import com.bluetype.android.domain.UiRoute
+import com.bluetype.android.domain.model.CommandFeedback
+import com.bluetype.android.domain.model.CommandFeedbackState
+import com.bluetype.android.domain.model.ConnectionState
+import com.bluetype.android.domain.model.ConnectionTarget
+import com.bluetype.android.domain.model.RemoteAction
+import com.bluetype.android.domain.model.RemoteShortcutProfile
+import com.bluetype.android.domain.model.UiRoute
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 

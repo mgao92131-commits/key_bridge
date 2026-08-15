@@ -1,8 +1,8 @@
 package com.bluetype.android.feature.connection
 
-import com.bluetype.android.data.DeviceType
-import com.bluetype.android.data.StoredDevice
-import com.bluetype.android.domain.ConnectionTarget
+import com.bluetype.android.data.device.DeviceType
+import com.bluetype.android.data.device.StoredDevice
+import com.bluetype.android.domain.model.ConnectionTarget
 import java.util.UUID
 
 enum class ProfilePersistenceIntent {

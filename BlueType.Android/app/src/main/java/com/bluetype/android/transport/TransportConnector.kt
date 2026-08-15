@@ -1,7 +1,7 @@
 package com.bluetype.android.transport
 
 import android.net.Network
-import com.bluetype.android.domain.ConnectionTarget
+import com.bluetype.android.domain.model.ConnectionTarget
 import java.io.InputStream
 import java.io.OutputStream
 

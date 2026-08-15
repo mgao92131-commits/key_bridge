@@ -1,7 +1,7 @@
 package com.bluetype.android.bluetooth
 
 import com.bluetype.android.feature.remote.*
-import com.bluetype.android.domain.RemoteAction
+import com.bluetype.android.domain.model.RemoteAction
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy

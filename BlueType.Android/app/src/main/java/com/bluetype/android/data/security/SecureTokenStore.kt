@@ -1,4 +1,4 @@
-package com.bluetype.android.data
+package com.bluetype.android.data.security
 
 import android.content.Context
 import android.security.keystore.KeyGenParameterSpec

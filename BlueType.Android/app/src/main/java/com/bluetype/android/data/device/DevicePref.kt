@@ -1,4 +1,4 @@
-package com.bluetype.android.data
+package com.bluetype.android.data.device
 
 import kotlinx.serialization.Serializable
 

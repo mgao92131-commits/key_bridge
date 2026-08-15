@@ -1,7 +1,7 @@
 package com.bluetype.android.feature.connection
 
-import com.bluetype.android.data.TokenCandidate
-import com.bluetype.android.domain.ConnectionTarget
+import com.bluetype.android.data.security.TokenCandidate
+import com.bluetype.android.domain.model.ConnectionTarget
 import com.bluetype.android.transport.SessionClient
 import kotlinx.coroutines.CompletableDeferred
 import java.util.concurrent.ConcurrentHashMap

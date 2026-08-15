@@ -1,4 +1,4 @@
-package com.bluetype.android.domain
+package com.bluetype.android.domain.model
 
 enum class CommandFeedbackState {
     QUEUED,

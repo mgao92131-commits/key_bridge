@@ -1,11 +1,11 @@
 package com.bluetype.android.data.preferences
 
 import androidx.datastore.preferences.core.edit
-import com.bluetype.android.data.PersistedSession
-import com.bluetype.android.data.StoredDevice
-import com.bluetype.android.data.TokenCandidate
-import com.bluetype.android.data.TokenSource
-import com.bluetype.android.data.withStableId
+import com.bluetype.android.data.device.StoredDevice
+import com.bluetype.android.data.device.withStableId
+import com.bluetype.android.data.security.TokenCandidate
+import com.bluetype.android.data.security.TokenSource
+import com.bluetype.android.data.session.PersistedSession
 
 /** Coordinates the one atomic write used after successful authorization. */
 internal class AuthorizedComputerPreferences(

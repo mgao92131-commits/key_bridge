@@ -1,6 +1,7 @@
-package com.bluetype.android.data
+package com.bluetype.android.data.session
 
-import com.bluetype.android.domain.ConnectionTarget
+import com.bluetype.android.domain.model.ConnectionTarget
+import com.bluetype.android.data.security.TokenCandidate
 
 internal interface TokenRepository {
     suspend fun currentToken(computerId: String): String?

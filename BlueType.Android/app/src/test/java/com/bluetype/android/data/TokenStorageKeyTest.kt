@@ -1,6 +1,7 @@
 package com.bluetype.android.data
 
-import com.bluetype.android.domain.ConnectionTarget
+import com.bluetype.android.data.security.tokenStorageKey
+import com.bluetype.android.domain.model.ConnectionTarget
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Test

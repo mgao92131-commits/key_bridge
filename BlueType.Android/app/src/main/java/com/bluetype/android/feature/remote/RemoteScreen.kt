@@ -53,7 +53,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import com.bluetype.android.domain.*
+import com.bluetype.android.domain.model.*
 import com.bluetype.android.ui.theme.BlueTypeRoundedTokens
 import com.bluetype.android.ui.theme.BlueTypeTheme
 import kotlinx.coroutines.delay

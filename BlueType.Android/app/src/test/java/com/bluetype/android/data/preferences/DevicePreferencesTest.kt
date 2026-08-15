@@ -4,9 +4,9 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.stringPreferencesKey
-import com.bluetype.android.data.DeviceType
-import com.bluetype.android.data.EncryptedTokenStore
-import com.bluetype.android.data.StoredDevice
+import com.bluetype.android.data.device.DeviceType
+import com.bluetype.android.data.device.StoredDevice
+import com.bluetype.android.data.security.EncryptedTokenStore
 import java.io.File
 import java.util.Base64
 import kotlinx.coroutines.flow.first

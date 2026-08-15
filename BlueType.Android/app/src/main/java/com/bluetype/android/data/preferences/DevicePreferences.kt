@@ -1,8 +1,8 @@
 package com.bluetype.android.data.preferences
 
-import com.bluetype.android.data.DeviceIdentityRepository
-import com.bluetype.android.data.StoredDevice
-import com.bluetype.android.data.withStableId
+import com.bluetype.android.data.device.StoredDevice
+import com.bluetype.android.data.device.withStableId
+import com.bluetype.android.data.session.DeviceIdentityRepository
 import java.util.UUID
 import androidx.datastore.preferences.core.edit
 import kotlinx.coroutines.flow.first

@@ -5,7 +5,7 @@ import android.net.ConnectivityManager
 import android.content.Context
 import android.net.Network
 import android.util.Log
-import com.bluetype.android.domain.ConnectionTarget
+import com.bluetype.android.domain.model.ConnectionTarget
 import com.bluetype.android.transport.bluetooth.SocketSession
 import com.bluetype.android.transport.tcp.TcpSocketSession
 import java.net.Inet4Address

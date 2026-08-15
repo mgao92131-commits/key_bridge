@@ -1,6 +1,6 @@
 package com.bluetype.android.feature.remote
 
-import com.bluetype.android.domain.RemoteAction
+import com.bluetype.android.domain.model.RemoteAction
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay

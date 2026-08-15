@@ -1,11 +1,11 @@
 package com.bluetype.android.feature.connection
 
-import com.bluetype.android.data.PersistedSession
-import com.bluetype.android.data.PersistedSessionRepository
-import com.bluetype.android.data.toConnectionTarget
-import com.bluetype.android.data.StoredDevice
-import com.bluetype.android.domain.ConnectionTarget
-import com.bluetype.android.domain.UiRoute
+import com.bluetype.android.data.device.StoredDevice
+import com.bluetype.android.data.session.PersistedSession
+import com.bluetype.android.data.session.PersistedSessionRepository
+import com.bluetype.android.data.session.toConnectionTarget
+import com.bluetype.android.domain.model.ConnectionTarget
+import com.bluetype.android.domain.model.UiRoute
 
 internal data class PersistedSessionSnapshot(
     val computer: StoredDevice,

@@ -1,10 +1,10 @@
 package com.bluetype.android.feature.connection
 
-import com.bluetype.android.domain.CommandFeedback
-import com.bluetype.android.domain.ConnectionState
-import com.bluetype.android.domain.ConnectionTarget
-import com.bluetype.android.domain.RemoteShortcutProfile
-import com.bluetype.android.domain.UiRoute
+import com.bluetype.android.domain.model.CommandFeedback
+import com.bluetype.android.domain.model.ConnectionState
+import com.bluetype.android.domain.model.ConnectionTarget
+import com.bluetype.android.domain.model.RemoteShortcutProfile
+import com.bluetype.android.domain.model.UiRoute
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
