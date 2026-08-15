@@ -30,10 +30,9 @@ internal sealed class CommandRouter
 
         foreach (var handler in _handlers)
         {
-            var response = await handler.TryHandleAsync(envelope, cancellationToken);
-            if (response is not null)
+            if (handler.SupportedCommands.Contains(envelope.Type, StringComparer.Ordinal))
             {
-                return response;
+                return await handler.HandleAsync(envelope, cancellationToken);
             }
         }
 

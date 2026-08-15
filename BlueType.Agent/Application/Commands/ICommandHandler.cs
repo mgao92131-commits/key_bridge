@@ -4,5 +4,7 @@ namespace BlueType.Agent.Application.Commands;
 
 internal interface ICommandHandler
 {
-    Task<Envelope?> TryHandleAsync(Envelope envelope, CancellationToken cancellationToken);
+    IReadOnlyCollection<string> SupportedCommands { get; }
+
+    Task<Envelope> HandleAsync(Envelope envelope, CancellationToken cancellationToken);
 }

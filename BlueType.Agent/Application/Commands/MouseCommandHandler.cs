@@ -1,11 +1,20 @@
 using BlueType.Protocol;
 using BlueType.Agent.Infrastructure.Input;
 using BlueType.Agent.Infrastructure.Logging;
+using ProtocolCommands = BlueType.Protocol.Commands;
 
 namespace BlueType.Agent.Application.Commands;
 
 internal sealed class MouseCommandHandler : ICommandHandler
 {
+    private static readonly string[] CommandTypes =
+    [
+        ProtocolCommands.MouseMove,
+        ProtocolCommands.MouseButton,
+        ProtocolCommands.MouseClick,
+        ProtocolCommands.MouseScroll,
+    ];
+
     private readonly InputInjector _inputInjector;
 
     public MouseCommandHandler(InputInjector inputInjector)
@@ -13,7 +22,9 @@ internal sealed class MouseCommandHandler : ICommandHandler
         _inputInjector = inputInjector;
     }
 
-    public async Task<Envelope?> TryHandleAsync(Envelope envelope, CancellationToken cancellationToken)
+    public IReadOnlyCollection<string> SupportedCommands => CommandTypes;
+
+    public async Task<Envelope> HandleAsync(Envelope envelope, CancellationToken cancellationToken)
     {
         switch (envelope.Type)
         {
@@ -65,7 +76,7 @@ internal sealed class MouseCommandHandler : ICommandHandler
             }
 
             default:
-                return null;
+                throw new InvalidOperationException($"Unsupported mouse command: {envelope.Type}");
         }
     }
 

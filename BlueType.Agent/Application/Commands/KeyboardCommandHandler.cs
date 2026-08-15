@@ -2,11 +2,21 @@ using System.Text;
 using BlueType.Agent.Infrastructure.Input;
 using BlueType.Agent.Infrastructure.Logging;
 using BlueType.Protocol;
+using ProtocolCommands = BlueType.Protocol.Commands;
 
 namespace BlueType.Agent.Application.Commands;
 
 internal sealed class KeyboardCommandHandler : ICommandHandler
 {
+    private static readonly string[] CommandTypes =
+    [
+        ProtocolCommands.TextInsert,
+        ProtocolCommands.KeyTap,
+        ProtocolCommands.KeyDown,
+        ProtocolCommands.KeyUp,
+        ProtocolCommands.Combo,
+    ];
+
     private readonly InputInjector _inputInjector;
 
     public KeyboardCommandHandler(InputInjector inputInjector)
@@ -14,7 +24,9 @@ internal sealed class KeyboardCommandHandler : ICommandHandler
         _inputInjector = inputInjector;
     }
 
-    public async Task<Envelope?> TryHandleAsync(Envelope envelope, CancellationToken cancellationToken)
+    public IReadOnlyCollection<string> SupportedCommands => CommandTypes;
+
+    public async Task<Envelope> HandleAsync(Envelope envelope, CancellationToken cancellationToken)
     {
         switch (envelope.Type)
         {
@@ -67,7 +79,7 @@ internal sealed class KeyboardCommandHandler : ICommandHandler
             }
 
             default:
-                return null;
+                throw new InvalidOperationException($"Unsupported keyboard command: {envelope.Type}");
         }
     }
 

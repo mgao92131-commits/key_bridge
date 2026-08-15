@@ -2,11 +2,18 @@ using System.Text;
 using BlueType.Agent.Infrastructure.Clipboard;
 using BlueType.Agent.Infrastructure.Logging;
 using BlueType.Protocol;
+using ProtocolCommands = BlueType.Protocol.Commands;
 
 namespace BlueType.Agent.Application.Commands;
 
 internal sealed class ClipboardCommandHandler : ICommandHandler
 {
+    private static readonly string[] CommandTypes =
+    [
+        ProtocolCommands.ClipboardSet,
+        ProtocolCommands.ClipboardGet,
+    ];
+
     private readonly ClipboardService _clipboardService;
 
     public ClipboardCommandHandler(ClipboardService clipboardService)
@@ -14,7 +21,9 @@ internal sealed class ClipboardCommandHandler : ICommandHandler
         _clipboardService = clipboardService;
     }
 
-    public async Task<Envelope?> TryHandleAsync(Envelope envelope, CancellationToken cancellationToken)
+    public IReadOnlyCollection<string> SupportedCommands => CommandTypes;
+
+    public async Task<Envelope> HandleAsync(Envelope envelope, CancellationToken cancellationToken)
     {
         switch (envelope.Type)
         {
@@ -34,7 +43,7 @@ internal sealed class ClipboardCommandHandler : ICommandHandler
             }
 
             default:
-                return null;
+                throw new InvalidOperationException($"Unsupported clipboard command: {envelope.Type}");
         }
     }
 }
