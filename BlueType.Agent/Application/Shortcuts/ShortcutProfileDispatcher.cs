@@ -1,15 +1,13 @@
-using System.Text.Json;
 using BlueType.Agent.Application.Ports;
 using BlueType.Agent.Infrastructure.Logging;
 using BlueType.Agent.Infrastructure.Shortcuts;
-using BlueType.Agent.Transport;
 using BlueType.Protocol;
 
 namespace BlueType.Agent.Application.Shortcuts;
 
 internal interface IShortcutProfileDispatcher
 {
-    void RegisterSession(Guid sessionId, ClientSession session);
+    void RegisterSession(Guid sessionId, Func<Envelope, CancellationToken, Task> writeAsync);
     void UnregisterSession(Guid sessionId);
 }
 
@@ -22,6 +20,7 @@ internal sealed class ShortcutProfileDispatcher : IShortcutProfileDispatcher, ID
     private readonly CancellationTokenSource _stop = new();
     private readonly IReadOnlyList<ShortcutProfileDefinition> _profiles;
     private readonly IForegroundAppProvider _foregroundAppProvider;
+    private readonly IShortcutProfileSessionPublisher _publisher;
     private readonly ShortcutProfileMatcher _matcher;
     private readonly Task _pollTask;
 
@@ -33,19 +32,22 @@ internal sealed class ShortcutProfileDispatcher : IShortcutProfileDispatcher, ID
     public ShortcutProfileDispatcher(
         ShortcutProfileMatcher matcher,
         IForegroundAppProvider foregroundAppProvider,
-        IShortcutProfileRepository profileRepository)
+        IShortcutProfileRepository profileRepository,
+        IShortcutProfileSessionPublisher publisher)
     {
         _profiles = profileRepository.Load();
         _foregroundAppProvider = foregroundAppProvider;
+        _publisher = publisher;
         _matcher = matcher;
         _pollTask = Task.Run(PollAsync);
     }
 
-    public void RegisterSession(Guid sessionId, ClientSession session)
+    public void RegisterSession(Guid sessionId, Func<Envelope, CancellationToken, Task> writeAsync)
     {
+        _publisher.RegisterSession(sessionId, writeAsync);
         lock (_gate)
         {
-            _activeSession = new ActiveShortcutSession(sessionId, session);
+            _activeSession = new ActiveShortcutSession(sessionId);
             _lastSentProfileKey = null;
         }
 
@@ -62,6 +64,8 @@ internal sealed class ShortcutProfileDispatcher : IShortcutProfileDispatcher, ID
                 _lastSentProfileKey = null;
             }
         }
+
+        _publisher.UnregisterSession(sessionId);
     }
 
     public void Dispose()
@@ -149,24 +153,8 @@ internal sealed class ShortcutProfileDispatcher : IShortcutProfileDispatcher, ID
             _lastSentProfileKey = profileKey;
         }
 
-        var envelope = JsonProtocol.CreateEnvelope(
-            Guid.NewGuid().ToString(),
-            Responses.ShortcutProfile,
-            new ShortcutProfilePayload(profile?.Name, profile?.Profile));
-
-        try
-        {
-            await session.Session.WriteAsync(envelope, cancellationToken);
-            AppLogger.Info(profile is null
-                ? $"Sent shortcut profile reset for foreground process {processName ?? "unknown"}."
-                : $"Sent shortcut profile '{profile.Id}' for foreground process {processName ?? "unknown"}.");
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            AppLogger.Error("Failed to send shortcut profile.", ex);
-        }
+        await _publisher.PublishAsync(session.SessionId, profile, processName, cancellationToken);
     }
 
-    private sealed record ActiveShortcutSession(Guid SessionId, ClientSession Session);
-    private sealed record ShortcutProfilePayload(string? Name, JsonElement? Profile);
+    private sealed record ActiveShortcutSession(Guid SessionId);
 }

@@ -66,7 +66,9 @@ internal sealed class SessionHandshake
         }
 
         lifecycle.MarkAuthorized();
-        _shortcutProfiles.RegisterSession(sessionId, session);
+        _shortcutProfiles.RegisterSession(
+            sessionId,
+            (response, writeCancellationToken) => session.WriteAsync(response, writeCancellationToken));
         return HandshakeResult.Continue;
     }
 }

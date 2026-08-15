@@ -1,4 +1,4 @@
-using BlueType.Agent.Transport;
+using BlueType.Protocol;
 
 namespace BlueType.Agent.Application.Shortcuts;
 
@@ -10,7 +10,7 @@ internal sealed class NullShortcutProfileDispatcher : IShortcutProfileDispatcher
     {
     }
 
-    public void RegisterSession(Guid sessionId, ClientSession session)
+    public void RegisterSession(Guid sessionId, Func<Envelope, CancellationToken, Task> writeAsync)
     {
     }
 

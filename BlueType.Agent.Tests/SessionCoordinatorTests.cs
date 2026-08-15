@@ -502,7 +502,9 @@ public sealed class SessionCoordinatorTests
         private int _registerCount;
         private int _unregisterCount;
 
-        public void RegisterSession(Guid sessionId, ClientSession session)
+        public void RegisterSession(
+            Guid sessionId,
+            Func<Envelope, CancellationToken, Task> writeAsync)
         {
             Interlocked.Increment(ref _registerCount);
         }
