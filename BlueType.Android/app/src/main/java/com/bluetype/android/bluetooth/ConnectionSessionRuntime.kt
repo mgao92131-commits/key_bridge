@@ -21,6 +21,10 @@ import com.bluetype.android.domain.ConnectionState
 import com.bluetype.android.domain.ConnectionTarget
 import com.bluetype.android.domain.RemoteAction
 import com.bluetype.android.domain.UiRoute
+import com.bluetype.android.transport.ConnectionOrchestrator
+import com.bluetype.android.transport.OrchestratorTransportConnector
+import com.bluetype.android.transport.SessionClient
+import com.bluetype.android.transport.TransportConnector
 import java.io.InputStream
 import java.io.OutputStream
 import java.util.UUID

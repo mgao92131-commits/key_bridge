@@ -5,6 +5,7 @@ import com.bluetype.android.domain.CommandFeedbackState
 import com.bluetype.android.domain.ConnectionState
 import com.bluetype.android.domain.ConnectionTarget
 import com.bluetype.android.domain.RemoteAction
+import com.bluetype.android.transport.SessionClient
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.advanceTimeBy

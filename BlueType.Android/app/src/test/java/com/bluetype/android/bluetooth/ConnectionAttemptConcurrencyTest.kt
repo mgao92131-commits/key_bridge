@@ -1,6 +1,8 @@
 package com.bluetype.android.bluetooth
 
 import com.bluetype.android.domain.ConnectionTarget
+import com.bluetype.android.transport.OpenedTransport
+import com.bluetype.android.transport.TransportConnector
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.atomic.AtomicInteger

@@ -1,4 +1,4 @@
-package com.bluetype.android.bluetooth
+package com.bluetype.android.transport
 
 import android.net.Network
 import com.bluetype.android.domain.ConnectionTarget

@@ -1,4 +1,4 @@
-package com.bluetype.android.network
+package com.bluetype.android.transport.tcp
 
 import kotlinx.serialization.Serializable
 

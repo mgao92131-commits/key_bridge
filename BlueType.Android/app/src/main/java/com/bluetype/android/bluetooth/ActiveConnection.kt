@@ -2,6 +2,7 @@ package com.bluetype.android.bluetooth
 
 import com.bluetype.android.data.TokenCandidate
 import com.bluetype.android.domain.ConnectionTarget
+import com.bluetype.android.transport.SessionClient
 import kotlinx.coroutines.CompletableDeferred
 import java.util.concurrent.ConcurrentHashMap
 

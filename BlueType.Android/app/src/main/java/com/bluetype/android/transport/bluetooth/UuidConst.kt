@@ -1,4 +1,4 @@
-package com.bluetype.android.util
+package com.bluetype.android.transport.bluetooth
 
 import java.util.UUID
 

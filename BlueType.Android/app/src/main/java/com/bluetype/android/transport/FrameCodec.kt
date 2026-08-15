@@ -1,5 +1,7 @@
-package com.bluetype.android.bluetooth
+package com.bluetype.android.transport
 
+import com.bluetype.android.bluetooth.Envelope
+import com.bluetype.android.bluetooth.ProtocolJson
 import java.io.EOFException
 import java.io.InputStream
 import java.io.OutputStream
