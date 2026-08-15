@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/mgao92131-commits/key_bridge/blob/main/protocol/spec/schema/envelope.schema.json",
+  "title": "BlueType Protocol v1 Envelope",
+  "description": "The JSON envelope carried inside every BlueType frame.",
+  "type": "object",
+  "required": [
+    "v",
+    "id",
+    "type",
+    "payload"
+  ],
+  "properties": {
+    "v": {
+      "const": 1,
+      "description": "Current BlueType protocol version."
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "type": {
+      "type": "string",
+      "minLength": 1
+    },
+    "token": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "payload": {
+      "type": "object",
+      "description": "Message-specific fields. Unknown payload fields remain forward-compatible."
+    }
+  }
+}
